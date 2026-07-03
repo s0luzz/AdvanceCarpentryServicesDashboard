@@ -13,6 +13,11 @@ const sidebarItems: SidebarItem[] = [
         icon: "🏠",
     },
     {
+        label: "Quotes",
+        path: "/quotes",
+        icon: "🧮",
+    },
+    {
         label: "Jobs",
         path: "/jobs",
         icon: "🛠️",

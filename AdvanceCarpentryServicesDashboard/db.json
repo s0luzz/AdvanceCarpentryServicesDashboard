@@ -1,0 +1,41 @@
+{
+  "quotedJobs": [
+    {
+      "id": "job-001",
+      "name": "Old Northern Road",
+      "quotedAmount": 53000,
+      "address": "70-72 Old Northern Road, Baulkham Hills NSW 2153"
+    },
+    {
+      "id": "job-002",
+      "name": "Sybil Street",
+      "quotedAmount": 28000,
+      "address": "16 Sybil Street, Guildford West NSW 2161"
+    },
+    {
+      "id": "job-003",
+      "name": "Bellevue",
+      "quotedAmount": 41500,
+      "address": "Bellevue Street"
+    },
+    {
+      "id": "3PszFo-Euik",
+      "name": "1",
+      "quotedAmount": 1,
+      "address": "1"
+    },
+    {
+      "id": "H2X58N7pZFo",
+      "name": "Ruby Homes",
+      "quotedAmount": 0,
+      "address": "a"
+    },
+    {
+      "id": "Cmz9vqsLJT8",
+      "name": "ruby",
+      "quotedAmount": 33390,
+      "address": "test"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}

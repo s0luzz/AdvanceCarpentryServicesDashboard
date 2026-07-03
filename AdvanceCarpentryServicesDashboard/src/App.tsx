@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 
 import Sidebar from "./components/layout/Sidebar";
-
+import QuotesPage from "./pages/QuotesPage";
 import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
 import JobDetailPage from "./pages/JobDetailPage";
@@ -16,6 +16,7 @@ function App() {
                 <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/jobs" element={<JobsPage />} />
+                    <Route path="/quotes" element={<QuotesPage />} />
                     <Route path="/jobs/:jobId" element={<JobDetailPage />} />
                     <Route path="/schedule" element={<SchedulePage />} />
                 </Routes>
