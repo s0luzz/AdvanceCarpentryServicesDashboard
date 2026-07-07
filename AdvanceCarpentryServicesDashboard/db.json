@@ -1,41 +1,195 @@
 {
   "quotedJobs": [
     {
-      "id": "job-001",
-      "name": "Old Northern Road",
-      "quotedAmount": 53000,
-      "address": "70-72 Old Northern Road, Baulkham Hills NSW 2153"
-    },
-    {
-      "id": "job-002",
-      "name": "Sybil Street",
-      "quotedAmount": 28000,
-      "address": "16 Sybil Street, Guildford West NSW 2161"
-    },
-    {
-      "id": "job-003",
-      "name": "Bellevue",
-      "quotedAmount": 41500,
-      "address": "Bellevue Street"
-    },
-    {
-      "id": "3PszFo-Euik",
-      "name": "1",
-      "quotedAmount": 1,
-      "address": "1"
-    },
-    {
-      "id": "H2X58N7pZFo",
+      "id": "b8335192-f812-48a9-90bc-357a69d0d495",
       "name": "Ruby Homes",
-      "quotedAmount": 0,
-      "address": "a"
+      "quotedAmount": 125125,
+      "gst": 12512.5,
+      "inclGst": 137637.5,
+      "address": "47 Triton Parade Nirimba Fields",
+      "wallsRoofRate": 75,
+      "floorRate": 150,
+      "ffw": 145,
+      "gfw": 135,
+      "floor": 204,
+      "roof": 247,
+      "additionalCost": 0,
+      "steel": 55000,
+      "files": [
+        {
+          "id": "bc67e39e-aa9c-460e-b76b-6ca2b2e33a46",
+          "originalName": "Document Set (3).pdf",
+          "storedName": "1783399828584-95c90059-a2d0-4c79-8dbd-27ce16d6e68b-Document_Set__3_.pdf",
+          "mimeType": "application/pdf",
+          "size": 12778193,
+          "path": "/uploads/1783399828584-95c90059-a2d0-4c79-8dbd-27ce16d6e68b-Document_Set__3_.pdf",
+          "uploadedAt": "2026-07-08T04:50:28.681Z"
+        },
+        {
+          "id": "213debba-e332-43a6-8219-8303e20b8cc9",
+          "originalName": "Structural Design (9).pdf",
+          "storedName": "1783399828663-3e19bad8-d45a-44a0-9b34-3de8db960305-Structural_Design__9_.pdf",
+          "mimeType": "application/pdf",
+          "size": 3330495,
+          "path": "/uploads/1783399828663-3e19bad8-d45a-44a0-9b34-3de8db960305-Structural_Design__9_.pdf",
+          "uploadedAt": "2026-07-08T04:50:28.686Z"
+        }
+      ],
+      "date": "2026-07-08T04:50:28.686Z",
+      "updatedAt": "2026-07-07T04:53:29.944Z"
     },
     {
-      "id": "Cmz9vqsLJT8",
-      "name": "ruby",
-      "quotedAmount": 33390,
-      "address": "test"
+      "id": "501c274b-33c7-4fa3-86fc-fb17001d61bc",
+      "name": "Ruby Homes",
+      "quotedAmount": 38150,
+      "gst": 3815,
+      "inclGst": 41965,
+      "address": "24 Lissanthe St Marsden Park ",
+      "wallsRoofRate": 75,
+      "floorRate": 150,
+      "ffw": 78,
+      "gfw": 77,
+      "floor": 91,
+      "roof": 145,
+      "additionalCost": 0,
+      "steel": 2000,
+      "files": [
+        {
+          "id": "d9a0a773-4710-4ed1-aec3-d6c7403f57f1",
+          "originalName": "Stamped Plan (2).pdf",
+          "storedName": "1783399339826-deb645e8-aed0-4365-948c-7a3c82198a86-Stamped_Plan__2_.pdf",
+          "mimeType": "application/pdf",
+          "size": 9363697,
+          "path": "/uploads/1783399339826-deb645e8-aed0-4365-948c-7a3c82198a86-Stamped_Plan__2_.pdf",
+          "uploadedAt": "2026-07-08T04:42:19.902Z"
+        },
+        {
+          "id": "3e5b2b84-1477-4f9e-af52-6e23730140b0",
+          "originalName": "Structural Design (10).pdf",
+          "storedName": "1783399339884-f72ac6ac-360b-401a-bf47-dd7c99d3a370-Structural_Design__10_.pdf",
+          "mimeType": "application/pdf",
+          "size": 2851587,
+          "path": "/uploads/1783399339884-f72ac6ac-360b-401a-bf47-dd7c99d3a370-Structural_Design__10_.pdf",
+          "uploadedAt": "2026-07-08T04:42:19.908Z"
+        }
+      ],
+      "date": "2026-07-08T04:42:19.908Z",
+      "updatedAt": "2026-07-07T04:53:40.797Z"
+    },
+    {
+      "id": "c93da837-6209-4502-99ad-a5087deb81d6",
+      "name": "Georges El Khouri",
+      "quotedAmount": 323000,
+      "gst": 32300,
+      "inclGst": 355300,
+      "address": "59-61 Memorial Avenue Blackwall",
+      "wallsRoofRate": 90,
+      "floorRate": 150,
+      "ffw": 420,
+      "gfw": 273,
+      "floor": 551,
+      "roof": 597,
+      "additionalCost": 33250,
+      "steel": 91000,
+      "files": [
+        {
+          "id": "0d9e435e-b5f2-4751-be7f-1129c526bcaa",
+          "originalName": "Approved Plans - DA 1115 2024 - 59-61 Memorial Avenue BLACKWALL_PAN-454571 (1).pdf",
+          "storedName": "1783395418907-3f14ba74-4812-4eac-a13a-ba6e7ce0f093-Approved_Plans_-_DA_1115_2024_-_59-61_Memorial_Avenue_BLACKWALL_PAN-454571__1_.pdf",
+          "mimeType": "application/pdf",
+          "size": 4432819,
+          "path": "/uploads/1783395418907-3f14ba74-4812-4eac-a13a-ba6e7ce0f093-Approved_Plans_-_DA_1115_2024_-_59-61_Memorial_Avenue_BLACKWALL_PAN-454571__1_.pdf",
+          "uploadedAt": "2026-07-08T03:36:58.996Z"
+        },
+        {
+          "id": "b320eeb9-e5bc-434b-b01d-af3e221a1748",
+          "originalName": "D-2406010-S5.pdf",
+          "storedName": "1783395418965-83eccb85-5d6a-48d0-8268-759c5b6e624b-D-2406010-S5.pdf",
+          "mimeType": "application/pdf",
+          "size": 319178,
+          "path": "/uploads/1783395418965-83eccb85-5d6a-48d0-8268-759c5b6e624b-D-2406010-S5.pdf",
+          "uploadedAt": "2026-07-08T03:36:58.998Z"
+        },
+        {
+          "id": "2fce564a-0c7b-49b7-92cd-afab250a88f6",
+          "originalName": "D-2406010-S6.pdf",
+          "storedName": "1783395418969-872fef87-9f2e-4b8b-80f1-038aaffd7a87-D-2406010-S6.pdf",
+          "mimeType": "application/pdf",
+          "size": 361441,
+          "path": "/uploads/1783395418969-872fef87-9f2e-4b8b-80f1-038aaffd7a87-D-2406010-S6.pdf",
+          "uploadedAt": "2026-07-08T03:36:58.998Z"
+        },
+        {
+          "id": "91e8259d-a90a-4837-a70f-945f166cd2d0",
+          "originalName": "D-2406010-S7.pdf",
+          "storedName": "1783395418970-fab550b7-74de-4d1c-8041-b4f3e46a3807-D-2406010-S7.pdf",
+          "mimeType": "application/pdf",
+          "size": 298735,
+          "path": "/uploads/1783395418970-fab550b7-74de-4d1c-8041-b4f3e46a3807-D-2406010-S7.pdf",
+          "uploadedAt": "2026-07-08T03:36:58.998Z"
+        },
+        {
+          "id": "a27c40f1-f752-4f8d-88fd-239ddbc1ac2b",
+          "originalName": "D-2406010-S8.pdf",
+          "storedName": "1783395418973-83e1a5b7-c71d-4ffb-b2dd-b10efa6175d0-D-2406010-S8.pdf",
+          "mimeType": "application/pdf",
+          "size": 152407,
+          "path": "/uploads/1783395418973-83e1a5b7-c71d-4ffb-b2dd-b10efa6175d0-D-2406010-S8.pdf",
+          "uploadedAt": "2026-07-08T03:36:58.998Z"
+        },
+        {
+          "id": "b3dd40ac-068b-4693-99c7-f576409833c5",
+          "originalName": "D-2406010-S9.pdf",
+          "storedName": "1783395418973-90a8c281-2491-4725-91c4-bc80c016b15b-D-2406010-S9.pdf",
+          "mimeType": "application/pdf",
+          "size": 227728,
+          "path": "/uploads/1783395418973-90a8c281-2491-4725-91c4-bc80c016b15b-D-2406010-S9.pdf",
+          "uploadedAt": "2026-07-08T03:36:58.998Z"
+        }
+      ],
+      "date": "2026-07-08T03:36:58.998Z",
+      "updatedAt": "2026-07-07T04:10:55.820Z"
+    },
+    {
+      "id": "c2aa128c-3b97-48d0-bfa1-b716cfa0940e",
+      "name": "Ruby Homes",
+      "quotedAmount": 46000,
+      "gst": 4600,
+      "inclGst": 50600.00000000001,
+      "address": "15 Campfire Road, Leppington",
+      "wallsRoofRate": 75,
+      "floorRate": 150,
+      "ffw": 93,
+      "gfw": 87,
+      "floor": 96,
+      "roof": 175,
+      "additionalCost": 4975,
+      "steel": 0,
+      "files": [
+        {
+          "id": "dcccc9ad-a168-4288-870e-e935a20d303f",
+          "originalName": "Stamped Plans.pdf",
+          "storedName": "1783394511932-6df64667-453c-47a3-974f-4628bd695f89-Stamped_Plans.pdf",
+          "mimeType": "application/pdf",
+          "size": 14857362,
+          "path": "/uploads/1783394511932-6df64667-453c-47a3-974f-4628bd695f89-Stamped_Plans.pdf",
+          "uploadedAt": "2026-07-07T03:21:52.055Z"
+        },
+        {
+          "id": "b9b8fad9-f864-4969-bef2-dadfd4deba6f",
+          "originalName": "Structural Plan v2.pdf",
+          "storedName": "1783394512028-2c7ac057-5d83-4ac6-a908-8de28a50b5ab-Structural_Plan_v2.pdf",
+          "mimeType": "application/pdf",
+          "size": 2501512,
+          "path": "/uploads/1783394512028-2c7ac057-5d83-4ac6-a908-8de28a50b5ab-Structural_Plan_v2.pdf",
+          "uploadedAt": "2026-07-07T03:21:52.068Z"
+        }
+      ],
+      "date": "2026-07-07T03:21:52.068Z",
+      "updatedAt": "2026-07-07T04:23:33.995Z"
     }
   ],
-  "$schema": "./node_modules/json-server/schema.json"
+  "$schema": [
+    "./node_modules/json-server/schema.json"
+  ]
 }
