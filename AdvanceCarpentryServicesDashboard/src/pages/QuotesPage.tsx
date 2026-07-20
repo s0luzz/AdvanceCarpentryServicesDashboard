@@ -6,21 +6,22 @@ import NewQuoteModal, {
 import deleteicon from "../assets/icons/delete.svg";
 
 type QuotedJob = {
-  id: string;
-  name: string;
-  quotedAmount: number;
-  gst: number;
-  inclGst: number;
-  address: string;
-  wallsRoofRate: number;
-  floorRate: number;
-  ffw: number;
-  gfw: number;
-  floor: number;
-  roof: number;
-  additionalCost: number;
-  steel: number;
-  date: string;
+    id: string;
+    name: string;
+    status?: string;
+    quotedAmount: number;
+    gst: number;
+    inclGst: number;
+    address: string;
+    wallsRoofRate: number;
+    floorRate: number;
+    ffw: number;
+    gfw: number;
+    floor: number;
+    roof: number;
+    additionalCost: number;
+    steel: number;
+    date:string;
 };
 
 export default function QuotesPage() {
@@ -61,7 +62,7 @@ export default function QuotesPage() {
   async function handleCreateQuote(formData: NewQuoteFormData) {
     try {
       const quoteData = new FormData();
-
+      quoteData.append("status", formData.status);
       quoteData.append("name", formData.name);
       quoteData.append("quotedAmount", String(formData.quotedAmount));
       quoteData.append("gst", String(formData.gst));
@@ -75,7 +76,12 @@ export default function QuotesPage() {
       quoteData.append("roof", String(formData.roof));
       quoteData.append("additionalCost", String(formData.additionalCost));
       quoteData.append("steel", String(formData.steel));
-
+      quoteData.append("hasSecondFloor", String(formData.hasSecondFloor));
+      quoteData.append("hasHebel", String(formData.hasHebel));
+      quoteData.append("hebelHeight", String(formData.hebelHeight));
+      quoteData.append("hebelLength", String(formData.hebelLength));
+      quoteData.append("hebelRate", String(formData.hebelRate));
+      quoteData.append("hebelCost", String(formData.hebelCost));
       formData.files.forEach((file) => {
         quoteData.append("files", file);
       });
@@ -175,6 +181,7 @@ export default function QuotesPage() {
                 </th>
                 <th className="px-6 py-3 font-semibold">Address</th>
                 <th className="px-6 py-3 font-semibold">Date</th>
+                <th className="px-6 py-3 font-semibold">Status</th>
                 <th className="px-6 py-3 font-semibold">Quick Action</th>
               </tr>
             </thead>
@@ -193,6 +200,11 @@ export default function QuotesPage() {
                   <td className="px-6 py-4 text-gray-700">{job.address}</td>
                   <td className="px-6 py-4 text-gray-700">
                     {new Date(job.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4">
+                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                          {job.status ?? "Quoted"}
+                      </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -218,7 +230,7 @@ export default function QuotesPage() {
               {quotedJobs.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-6 py-8 text-center text-sm text-gray-500"
                   >
                     No quoted jobs yet.

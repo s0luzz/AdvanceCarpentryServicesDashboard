@@ -18,6 +18,11 @@ const sidebarItems: SidebarItem[] = [
         icon: "🧮",
     },
     {
+        label: "PdfViewer",
+        path: "/pdf-viewer",
+        icon: "📄",
+    },
+    {
         label: "Jobs",
         path: "/jobs",
         icon: "🛠️",

@@ -6,6 +6,8 @@ import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
 import JobDetailPage from "./pages/JobDetailPage";
 import SchedulePage from "./pages/SchedulePage";
+import PdfViewerPage from "./pages/PdfViewerPage";
+
 
 function App() {
     return (
@@ -14,6 +16,7 @@ function App() {
 
             <main className="flex-1 p-6">
                 <Routes>
+                    <Route path="/pdf-viewer" element={<PdfViewerPage />} />
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/jobs" element={<JobsPage />} />
                     <Route path="/quotes" element={<QuotesPage />} />
