@@ -178,17 +178,6 @@ function calculateCalibratedDistance(
     return null;
   }
 
-  /*
-   * Solve:
-   *
-   * measurementVector =
-   *   primaryComponent * primaryAxis
-   *   + secondaryComponent * secondaryAxis
-   *
-   * This uses the inverse of the two-axis matrix, so the
-   * calibration axes may be rotated and do not need to be
-   * perfectly aligned with the screen.
-   */
   const primaryComponent =
     (measurementVector.x * secondary.y -
       measurementVector.y * secondary.x) /
@@ -219,6 +208,10 @@ function formatDistance(distanceMm: number) {
   }
 
   return `${Math.round(distanceMm)} mm`;
+}
+
+function formatTotalDistance(distanceMm: number) {
+  return `${(distanceMm / 1000).toFixed(2)} m`;
 }
 
 function formatCalibrationDistance(
@@ -358,6 +351,26 @@ export default function PdfViewer({
           measurement.pageNumber === pageNumber,
       ),
     [measurements, pageNumber],
+  );
+
+  const currentMeasurementTotalMm = useMemo(
+    () =>
+      currentMeasurements.reduce(
+        (total, measurement) =>
+          total + measurement.distanceMm,
+        0,
+      ),
+    [currentMeasurements],
+  );
+
+  const allPagesMeasurementTotalMm = useMemo(
+    () =>
+      measurements.reduce(
+        (total, measurement) =>
+          total + measurement.distanceMm,
+        0,
+      ),
+    [measurements],
   );
 
   useEffect(() => {
@@ -523,13 +536,8 @@ export default function PdfViewer({
         return;
       }
 
-      const currentViewport = viewportRef.current;
-      if (!currentViewport) {
-        return;
-      }
-
       const viewportBounds =
-        currentViewport.getBoundingClientRect();
+        (viewport as HTMLElement).getBoundingClientRect();
 
       const cursorX =
         event.clientX - viewportBounds.left;
@@ -1399,20 +1407,6 @@ export default function PdfViewer({
                 : "Step 2 of 2"}
             </span>
           )}
-
-          {currentMeasurements.length >
-            0 && (
-            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-              {
-                currentMeasurements.length
-              }{" "}
-              measurement
-              {currentMeasurements.length ===
-              1
-                ? ""
-                : "s"}
-            </span>
-          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -1615,6 +1609,83 @@ export default function PdfViewer({
         </div>
       </div>
 
+      <div className="relative z-40 grid shrink-0 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-blue-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Page Total
+          </p>
+
+          <p className="mt-1 text-2xl font-bold text-blue-700">
+            {formatTotalDistance(
+              currentMeasurementTotalMm,
+            )}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            {currentMeasurements.length} measurement
+            {currentMeasurements.length === 1
+              ? ""
+              : "s"}{" "}
+            on page {pageNumber}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            All Pages Total
+          </p>
+
+          <p className="mt-1 text-2xl font-bold text-slate-800">
+            {formatTotalDistance(
+              allPagesMeasurementTotalMm,
+            )}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            {measurements.length} total measurement
+            {measurements.length === 1
+              ? ""
+              : "s"}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Scale Status
+          </p>
+
+          <p className="mt-1 text-base font-semibold text-slate-800">
+            {currentCalibration
+              ? "Calibrated"
+              : "Not calibrated"}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            {currentCalibration
+              ? "Two-axis scale active"
+              : "Set both axes to measure"}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Current Page
+          </p>
+
+          <p className="mt-1 text-base font-semibold text-slate-800">
+            Page {pageNumber}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            {numberOfPages || 0} page
+            {numberOfPages === 1
+              ? ""
+              : "s"}{" "}
+            in document
+          </p>
+        </div>
+      </div>
+
       {currentCalibration && (
         <div className="relative z-40 flex shrink-0 flex-wrap gap-3 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-800">
           <span>
@@ -1668,8 +1739,7 @@ export default function PdfViewer({
               }
               error={
                 <div className="rounded-lg border border-red-200 bg-red-50 px-8 py-6 text-red-700">
-                  This PDF could not be
-                  opened.
+                  This PDF could not be opened.
                 </div>
               }
               onLoadSuccess={({
