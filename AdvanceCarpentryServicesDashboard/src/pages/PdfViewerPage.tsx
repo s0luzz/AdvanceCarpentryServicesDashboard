@@ -1,5 +1,5 @@
 import { type ChangeEvent, useEffect, useState } from "react";
-import PdfViewer from "../components/layout/PdfViewer";
+import PdfViewer from "../components/PdfViewer.tsx";
 
 export default function PdfViewerPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

@@ -16,7 +16,10 @@ function App() {
 
             <main className="flex-1 p-6">
                 <Routes>
-                    <Route path="/pdf-viewer" element={<PdfViewerPage />} />
+                    <Route
+                    path="/quotes/:jobId/pdf-viewer"
+                    element={<PdfViewerPage />}
+                    />
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/jobs" element={<JobsPage />} />
                     <Route path="/quotes" element={<QuotesPage />} />

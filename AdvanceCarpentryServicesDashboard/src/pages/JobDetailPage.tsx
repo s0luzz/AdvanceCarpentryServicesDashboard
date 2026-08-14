@@ -5,11 +5,12 @@ import {
     useState,
 } from "react";
 import { useParams } from "react-router-dom";
+
 import NewQuoteModal, {
     type NewQuoteFormData,
     type QuoteStatus,
 } from "../components/layout/NewQuoteModal";
-import PdfViewer from "../components/layout/PdfViewer";
+import PdfViewer from "../components/PdfViewer";
 
 type AttachedFile = {
     id: string;
@@ -55,25 +56,45 @@ type Job = {
 const API_URL = "http://localhost:3001";
 
 function JobDetailPage() {
-    const { jobId } = useParams<{ jobId: string }>();
+    const { jobId } = useParams<{
+        jobId: string;
+    }>();
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef =
+        useRef<HTMLInputElement>(null);
 
-    const [jobDetails, setJobDetails] = useState<Job>();
-    const [loading, setLoading] = useState(true);
-    const [isEditQuoteModalOpen, setIsEditQuoteModalOpen] =
-        useState(false);
+    const [jobDetails, setJobDetails] =
+        useState<Job>();
 
-    const [selectedFile, setSelectedFile] =
-        useState<AttachedFile | null>(null);
+    const [loading, setLoading] =
+        useState(true);
 
-    const [isUploading, setIsUploading] =
-        useState(false);
+    const [
+        isEditQuoteModalOpen,
+        setIsEditQuoteModalOpen,
+    ] = useState(false);
 
-    const [deletingFileId, setDeletingFileId] =
-        useState<string | null>(null);
+    const [
+        selectedFile,
+        setSelectedFile,
+    ] = useState<AttachedFile | null>(
+        null,
+    );
 
-    const [fileError, setFileError] = useState("");
+    const [
+        isUploading,
+        setIsUploading,
+    ] = useState(false);
+
+    const [
+        deletingFileId,
+        setDeletingFileId,
+    ] = useState<string | null>(null);
+
+    const [
+        fileError,
+        setFileError,
+    ] = useState("");
 
     async function fetchJobDetails() {
         if (!jobId) {
@@ -94,7 +115,8 @@ function JobDetailPage() {
                 );
             }
 
-            const data: Job = await response.json();
+            const data: Job =
+                await response.json();
 
             setJobDetails({
                 ...data,
@@ -133,9 +155,12 @@ function JobDetailPage() {
                 `${API_URL}/api/quoted-jobs/${jobId}`,
                 {
                     method: "PATCH",
+
                     headers: {
-                        "Content-Type": "application/json",
+                        "Content-Type":
+                            "application/json",
                     },
+
                     body: JSON.stringify(
                         quoteWithoutFiles,
                     ),
@@ -158,10 +183,13 @@ function JobDetailPage() {
 
             setJobDetails({
                 ...updatedQuote,
-                files: updatedQuote.files ?? [],
+                files:
+                    updatedQuote.files ?? [],
             });
 
-            setIsEditQuoteModalOpen(false);
+            setIsEditQuoteModalOpen(
+                false,
+            );
         } catch (error) {
             console.error(
                 "Failed to update quote:",
@@ -179,20 +207,35 @@ function JobDetailPage() {
 
         event.target.value = "";
 
-        if (!jobId || files.length === 0) {
+        if (
+            !jobId ||
+            files.length === 0
+        ) {
             return;
         }
 
-        const invalidFile = files.find(
-            (file) =>
-                file.type !== "application/pdf" ||
-                !file.name.toLowerCase().endsWith(".pdf"),
-        );
+        const invalidFile =
+            files.find((file) => {
+                const hasPdfMimeType =
+                    file.type ===
+                    "application/pdf";
+
+                const hasPdfExtension =
+                    file.name
+                        .toLowerCase()
+                        .endsWith(".pdf");
+
+                return !(
+                    hasPdfMimeType ||
+                    hasPdfExtension
+                );
+            });
 
         if (invalidFile) {
             setFileError(
                 "Only PDF files can be uploaded.",
             );
+
             return;
         }
 
@@ -200,10 +243,14 @@ function JobDetailPage() {
         setIsUploading(true);
 
         try {
-            const formData = new FormData();
+            const formData =
+                new FormData();
 
             files.forEach((file) => {
-                formData.append("files", file);
+                formData.append(
+                    "files",
+                    file,
+                );
             });
 
             const response = await fetch(
@@ -230,19 +277,26 @@ function JobDetailPage() {
                     ? result
                     : [result];
 
-            setJobDetails((currentJob) => {
-                if (!currentJob) {
-                    return currentJob;
-                }
+            setJobDetails(
+                (currentJob) => {
+                    if (!currentJob) {
+                        return currentJob;
+                    }
 
-                return {
-                    ...currentJob,
-                    files: [
-                        ...(currentJob.files ?? []),
-                        ...uploadedFiles,
-                    ],
-                };
-            });
+                    return {
+                        ...currentJob,
+
+                        files: [
+                            ...(
+                                currentJob.files ??
+                                []
+                            ),
+
+                            ...uploadedFiles,
+                        ],
+                    };
+                },
+            );
         } catch (error) {
             setFileError(
                 error instanceof Error
@@ -261,9 +315,10 @@ function JobDetailPage() {
             return;
         }
 
-        const confirmed = window.confirm(
-            `Delete "${file.originalName}" from this job?`,
-        );
+        const confirmed =
+            window.confirm(
+                `Delete "${file.originalName}" from this job?`,
+            );
 
         if (!confirmed) {
             return;
@@ -291,21 +346,31 @@ function JobDetailPage() {
                 );
             }
 
-            setJobDetails((currentJob) => {
-                if (!currentJob) {
-                    return currentJob;
-                }
+            setJobDetails(
+                (currentJob) => {
+                    if (!currentJob) {
+                        return currentJob;
+                    }
 
-                return {
-                    ...currentJob,
-                    files: currentJob.files.filter(
-                        (currentFile) =>
-                            currentFile.id !== file.id,
-                    ),
-                };
-            });
+                    return {
+                        ...currentJob,
 
-            if (selectedFile?.id === file.id) {
+                        files:
+                            currentJob.files.filter(
+                                (
+                                    currentFile,
+                                ) =>
+                                    currentFile.id !==
+                                    file.id,
+                            ),
+                    };
+                },
+            );
+
+            if (
+                selectedFile?.id ===
+                file.id
+            ) {
                 setSelectedFile(null);
             }
         } catch (error) {
@@ -319,37 +384,56 @@ function JobDetailPage() {
         }
     }
 
-    function getFileUrl(file: AttachedFile) {
-        return `${API_URL}${file.url ?? file.path}`;
+    function getFileUrl(
+        file: AttachedFile,
+    ) {
+        const filePath =
+            file.url ?? file.path;
+
+        if (
+            filePath.startsWith(
+                "http://",
+            ) ||
+            filePath.startsWith(
+                "https://",
+            )
+        ) {
+            return filePath;
+        }
+
+        return `${API_URL}${filePath}`;
     }
 
     function formatCurrency(
         value: number | undefined,
     ) {
-        return `$${(value ?? 0).toLocaleString(
-            "en-AU",
-            {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            },
-        )}`;
+        return `$${(
+            value ?? 0
+        ).toLocaleString("en-AU", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })}`;
     }
 
     function formatNumber(
         value: number | undefined,
     ) {
-        return (value ?? 0).toLocaleString(
-            "en-AU",
-        );
+        return (
+            value ?? 0
+        ).toLocaleString("en-AU");
     }
 
-    function formatFileSize(size: number) {
+    function formatFileSize(
+        size: number,
+    ) {
         if (size < 1024) {
             return `${size} B`;
         }
 
         if (size < 1024 * 1024) {
-            return `${(size / 1024).toFixed(1)} KB`;
+            return `${(
+                size / 1024
+            ).toFixed(1)} KB`;
         }
 
         return `${(
@@ -362,17 +446,25 @@ function JobDetailPage() {
     function formatUploadedDate(
         uploadedAt: string,
     ) {
-        const date = new Date(uploadedAt);
+        const date =
+            new Date(uploadedAt);
 
-        if (Number.isNaN(date.getTime())) {
+        if (
+            Number.isNaN(
+                date.getTime(),
+            )
+        ) {
             return "Unknown";
         }
 
-        return date.toLocaleDateString("en-AU", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        });
+        return date.toLocaleDateString(
+            "en-AU",
+            {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+            },
+        );
     }
 
     if (loading) {
@@ -383,13 +475,29 @@ function JobDetailPage() {
         );
     }
 
+    if (!jobId) {
+        return (
+            <main className="min-h-screen bg-gray-50 p-8">
+                <div className="mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
+                    A job ID was not
+                    provided.
+                </div>
+            </main>
+        );
+    }
+
     if (selectedFile) {
         return (
             <main className="min-h-screen bg-gray-100 p-4">
                 <PdfViewer
-                    file={getFileUrl(selectedFile)}
+                    jobId={jobId}
+                    file={getFileUrl(
+                        selectedFile,
+                    )}
                     onClose={() =>
-                        setSelectedFile(null)
+                        setSelectedFile(
+                            null,
+                        )
                     }
                 />
             </main>
@@ -476,8 +584,8 @@ function JobDetailPage() {
 
                     {!jobDetails ? (
                         <div className="px-6 py-8 text-sm text-gray-500">
-                            Job details could not be
-                            found.
+                            Job details could not
+                            be found.
                         </div>
                     ) : (
                         <>
@@ -598,8 +706,7 @@ function JobDetailPage() {
                                     <div className="space-y-3 text-sm">
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">
-                                                Ground Floor
-                                                Walls
+                                                Ground Floor Walls
                                             </span>
 
                                             <span className="font-medium text-gray-900">
@@ -614,9 +721,7 @@ function JobDetailPage() {
                                             <>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-500">
-                                                        First
-                                                        Floor
-                                                        Walls
+                                                        First Floor Walls
                                                     </span>
 
                                                     <span className="font-medium text-gray-900">
@@ -777,8 +882,8 @@ function JobDetailPage() {
                                 )}
 
                                 {!jobDetails.files ||
-                                jobDetails.files.length ===
-                                    0 ? (
+                                jobDetails.files
+                                    .length === 0 ? (
                                     <button
                                         type="button"
                                         onClick={() =>
@@ -802,8 +907,7 @@ function JobDetailPage() {
                                             <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                                                 <tr>
                                                     <th className="px-6 py-3 font-semibold">
-                                                        File
-                                                        Name
+                                                        File Name
                                                     </th>
 
                                                     <th className="px-6 py-3 font-semibold">
@@ -878,8 +982,7 @@ function JobDetailPage() {
                                                                         }
                                                                         className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
                                                                     >
-                                                                        Open
-                                                                        viewer
+                                                                        Open viewer
                                                                     </button>
 
                                                                     <a
@@ -890,8 +993,7 @@ function JobDetailPage() {
                                                                         rel="noreferrer"
                                                                         className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
                                                                     >
-                                                                        New
-                                                                        tab
+                                                                        New tab
                                                                     </a>
 
                                                                     <button
@@ -929,11 +1031,17 @@ function JobDetailPage() {
 
             {jobDetails && (
                 <NewQuoteModal
-                    isOpen={isEditQuoteModalOpen}
-                    onClose={() =>
-                        setIsEditQuoteModalOpen(false)
+                    isOpen={
+                        isEditQuoteModalOpen
                     }
-                    onCreateQuote={handleUpdateQuote}
+                    onClose={() =>
+                        setIsEditQuoteModalOpen(
+                            false,
+                        )
+                    }
+                    onCreateQuote={
+                        handleUpdateQuote
+                    }
                     initialQuote={{
                         ...jobDetails,
                         files: [],
