@@ -1,6 +1,63 @@
 {
   "quotedJobs": [
     {
+      "id": "56b9cbd6-acb5-421f-b7de-912f525e268f",
+      "status": "Quoted",
+      "name": "Cherry",
+      "address": "18 Thorpe Way, Box Hill",
+      "quotedAmount": 0,
+      "gst": 0,
+      "inclGst": 0,
+      "wallsRoofRate": 0,
+      "floorRate": 0,
+      "ffw": 0,
+      "gfw": 0,
+      "floor": 0,
+      "roof": 0,
+      "additionalCost": 0,
+      "steel": 0,
+      "hasSecondFloor": false,
+      "hasHebel": false,
+      "hebelHeight": 0,
+      "hebelLength": 0,
+      "hebelRate": 0,
+      "hebelCost": 0,
+      "takeoff": {
+        "calibrations": {},
+        "measurements": [],
+        "areaBoxes": [],
+        "assignedPageWallTotals": {},
+        "assignedPageAreaTotals": {},
+        "retainScaleAcrossPages": false
+      },
+      "files": [
+        {
+          "id": "db281ad0-dac8-40ef-a183-7c019cce02a7",
+          "name": "013025G (18 Thorpe Way_Architectural Plans_CC) 20251215122458929",
+          "originalName": "013025G (18 Thorpe Way_Architectural Plans_CC) 20251215122458929.pdf",
+          "storedName": "1788745654215-6b242095-7e91-434d-b09f-07013fa094bd.pdf",
+          "mimeType": "application/pdf",
+          "size": 6173678,
+          "path": "/uploads/1788745654215-6b242095-7e91-434d-b09f-07013fa094bd.pdf",
+          "url": "/uploads/1788745654215-6b242095-7e91-434d-b09f-07013fa094bd.pdf",
+          "uploadedAt": "2026-09-07T01:47:34.302Z"
+        },
+        {
+          "id": "742df54c-b26c-4b95-b3a1-9dd4d272dac8",
+          "name": "013025G (230608SD - Issue B) 20251215122543574",
+          "originalName": "013025G (230608SD - Issue B) 20251215122543574.pdf",
+          "storedName": "1788745654253-108ce4e8-6569-405d-8930-4069db542ec0.pdf",
+          "mimeType": "application/pdf",
+          "size": 4948430,
+          "path": "/uploads/1788745654253-108ce4e8-6569-405d-8930-4069db542ec0.pdf",
+          "url": "/uploads/1788745654253-108ce4e8-6569-405d-8930-4069db542ec0.pdf",
+          "uploadedAt": "2026-09-07T01:47:34.303Z"
+        }
+      ],
+      "date": "2026-09-07T01:47:34.303Z",
+      "updatedAt": "2026-09-07T01:47:41.458Z"
+    },
+    {
       "id": "8cb32ec5-e6f8-420a-9517-10452a2cb4ef",
       "status": "Quoted",
       "name": "Ruby Homes",

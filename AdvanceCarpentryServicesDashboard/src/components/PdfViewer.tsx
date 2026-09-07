@@ -103,19 +103,25 @@ type SavedTakeoff = {
   calibrations: Record<number, Calibration>;
   measurements: Measurement[];
   areaBoxes: AreaBox[];
+
   assignedPageWallTotals: Record<
     number,
     AssignedPageWallTotal
   >;
+
   assignedPageAreaTotals: Record<
     string,
     AssignedPageAreaTotal
   >;
+
+  retainScaleAcrossPages: boolean;
 };
 
 type CalibrationUnit = "mm" | "m";
 
-type CalibrationAxis = "primary" | "secondary";
+type CalibrationAxis =
+  | "primary"
+  | "secondary";
 
 type ViewerTool =
   | "pan"
@@ -124,15 +130,21 @@ type ViewerTool =
   | "measure-floor"
   | "measure-roof";
 
-type AreaDrawingStep = "first-line" | "second-line";
+type AreaDrawingStep =
+  | "first-line"
+  | "second-line";
 
-const API_URL = "http://localhost:3001";
+const API_URL =
+  "http://localhost:3001";
 
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 4;
 const SCALE_STEP = 0.2;
+
 const MIN_LINE_LENGTH = 0.002;
+
 const MIN_AXIS_DETERMINANT = 0.1;
+
 const SAVE_DELAY_MS = 600;
 
 function createEmptyTakeoff(): SavedTakeoff {
@@ -142,6 +154,7 @@ function createEmptyTakeoff(): SavedTakeoff {
     areaBoxes: [],
     assignedPageWallTotals: {},
     assignedPageAreaTotals: {},
+    retainScaleAcrossPages: false,
   };
 }
 
@@ -159,7 +172,8 @@ function clamp(
 function createId() {
   if (
     typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
+    typeof crypto.randomUUID ===
+      "function"
   ) {
     return crypto.randomUUID();
   }
@@ -182,19 +196,28 @@ function getPageSpaceVector(
   pageAspectRatio: number,
 ): Vector {
   return {
-    x: (end.x - start.x) * pageAspectRatio,
+    x:
+      (end.x - start.x) *
+      pageAspectRatio,
+
     y: end.y - start.y,
   };
 }
 
-function getVectorLength(vector: Vector) {
+function getVectorLength(
+  vector: Vector,
+) {
   return Math.sqrt(
-    vector.x ** 2 + vector.y ** 2,
+    vector.x ** 2 +
+      vector.y ** 2,
   );
 }
 
-function normaliseVector(vector: Vector): Vector {
-  const length = getVectorLength(vector);
+function normaliseVector(
+  vector: Vector,
+): Vector {
+  const length =
+    getVectorLength(vector);
 
   if (length === 0) {
     return {
@@ -224,7 +247,8 @@ function calculateAxisAngleDifference(
   );
 
   return (
-    (Math.acos(clampedDotProduct) * 180) /
+    (Math.acos(clampedDotProduct) *
+      180) /
     Math.PI
   );
 }
@@ -243,10 +267,12 @@ function calculateCalibratedDistance(
     );
 
   const primary =
-    calibration.primaryAxis.unitVector;
+    calibration.primaryAxis
+      .unitVector;
 
   const secondary =
-    calibration.secondaryAxis.unitVector;
+    calibration.secondaryAxis
+      .unitVector;
 
   const determinant =
     primary.x * secondary.y -
@@ -260,43 +286,63 @@ function calculateCalibratedDistance(
   }
 
   const primaryComponent =
-    (measurementVector.x * secondary.y -
-      measurementVector.y * secondary.x) /
+    (measurementVector.x *
+      secondary.y -
+      measurementVector.y *
+        secondary.x) /
     determinant;
 
   const secondaryComponent =
-    (primary.x * measurementVector.y -
-      primary.y * measurementVector.x) /
+    (primary.x *
+      measurementVector.y -
+      primary.y *
+        measurementVector.x) /
     determinant;
 
   const primaryDistanceMm =
     primaryComponent *
-    calibration.primaryAxis.mmPerPageUnit;
+    calibration.primaryAxis
+      .mmPerPageUnit;
 
   const secondaryDistanceMm =
     secondaryComponent *
-    calibration.secondaryAxis.mmPerPageUnit;
+    calibration.secondaryAxis
+      .mmPerPageUnit;
 
   return Math.sqrt(
     primaryDistanceMm ** 2 +
-    secondaryDistanceMm ** 2,
+      secondaryDistanceMm ** 2,
   );
 }
 
-function formatDistance(distanceMm: number) {
+function formatDistance(
+  distanceMm: number,
+) {
   if (distanceMm >= 1000) {
-    return `${(distanceMm / 1000).toFixed(2)} m`;
+    return `${(
+      distanceMm / 1000
+    ).toFixed(2)} m`;
   }
 
-  return `${Math.round(distanceMm)} mm`;
+  return `${Math.round(
+    distanceMm,
+  )} mm`;
 }
 
-function formatTotalDistance(distanceMm: number) {
-  return `${(distanceMm / 1000).toFixed(2)} m`;
+function formatTotalDistance(
+  distanceMm: number,
+) {
+  return `${(
+    distanceMm / 1000
+  ).toFixed(2)} m`;
 }
 
-function formatArea(areaM2: number) {
-  return `${areaM2.toFixed(2)} m²`;
+function formatArea(
+  areaM2: number,
+) {
+  return `${areaM2.toFixed(
+    2,
+  )} m²`;
 }
 
 function formatCalibrationDistance(
@@ -306,7 +352,9 @@ function formatCalibrationDistance(
     distanceMm >= 1000 &&
     distanceMm % 1000 === 0
   ) {
-    return `${distanceMm / 1000} m`;
+    return `${
+      distanceMm / 1000
+    } m`;
   }
 
   return `${distanceMm.toLocaleString(
@@ -330,17 +378,22 @@ function parseSavedTakeoff(
   return {
     calibrations:
       takeoff.calibrations &&
-      typeof takeoff.calibrations === "object"
+      typeof takeoff.calibrations ===
+        "object"
         ? takeoff.calibrations
         : {},
 
     measurements:
-      Array.isArray(takeoff.measurements)
+      Array.isArray(
+        takeoff.measurements,
+      )
         ? takeoff.measurements
         : [],
 
     areaBoxes:
-      Array.isArray(takeoff.areaBoxes)
+      Array.isArray(
+        takeoff.areaBoxes,
+      )
         ? takeoff.areaBoxes
         : [],
 
@@ -357,6 +410,10 @@ function parseSavedTakeoff(
         "object"
         ? takeoff.assignedPageAreaTotals
         : {},
+
+    retainScaleAcrossPages:
+      takeoff.retainScaleAcrossPages ===
+      true,
   };
 }
 
@@ -365,12 +422,16 @@ async function readJsonResponse<T>(
   fallbackMessage: string,
 ): Promise<T> {
   const contentType =
-    response.headers.get("content-type");
+    response.headers.get(
+      "content-type",
+    );
 
   if (
     !contentType
       ?.toLowerCase()
-      .includes("application/json")
+      .includes(
+        "application/json",
+      )
   ) {
     const responseText =
       await response.text();
@@ -379,7 +440,9 @@ async function readJsonResponse<T>(
       responseText
         .trim()
         .toLowerCase()
-        .startsWith("<!doctype")
+        .startsWith(
+          "<!doctype",
+        )
     ) {
       throw new Error(
         "The request reached the frontend instead of the backend. Confirm the backend is running on port 3001.",
@@ -391,7 +454,8 @@ async function readJsonResponse<T>(
     );
   }
 
-  const result = (await response.json()) as T;
+  const result =
+    (await response.json()) as T;
 
   if (!response.ok) {
     const errorResult =
@@ -426,167 +490,366 @@ export default function PdfViewer({
     panY: number;
   } | null>(null);
 
-  const scaleRef = useRef(1);
+  const scaleRef =
+    useRef(1);
 
-  const pageWidthRef = useRef<
-    number | undefined
-  >(undefined);
+  const pageWidthRef =
+    useRef<number | undefined>(
+      undefined,
+    );
 
-  const panRef = useRef<PanPosition>({
-    x: 0,
-    y: 0,
-  });
+  const panRef =
+    useRef<PanPosition>({
+      x: 0,
+      y: 0,
+    });
 
   const activeToolRef =
-    useRef<ViewerTool>("pan");
+    useRef<ViewerTool>(
+      "pan",
+    );
 
-  const modalOpenRef = useRef(false);
+  const modalOpenRef =
+    useRef(false);
 
   const hasLoadedTakeoffRef =
     useRef(false);
 
-  const [numberOfPages, setNumberOfPages] =
-    useState(0);
+  const [
+    numberOfPages,
+    setNumberOfPages,
+  ] = useState(0);
 
-  const [pageNumber, setPageNumber] =
+  const [
+    pageNumber,
+    setPageNumber,
+  ] = useState(1);
+
+  const [scale, setScale] =
     useState(1);
 
-  const [scale, setScale] = useState(1);
-
-  const [pageWidth, setPageWidth] =
+  const [
+    pageWidth,
+    setPageWidth,
+  ] =
     useState<number | undefined>();
 
-  const [pan, setPan] = useState<PanPosition>({
-    x: 0,
-    y: 0,
-  });
+  const [pan, setPan] =
+    useState<PanPosition>({
+      x: 0,
+      y: 0,
+    });
 
   const [
     isLoadingTakeoff,
     setIsLoadingTakeoff,
   ] = useState(true);
 
-  const [isSaving, setIsSaving] =
-    useState(false);
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
 
-  const [saveError, setSaveError] =
-    useState("");
+  const [
+    saveError,
+    setSaveError,
+  ] = useState("");
 
-  const [lastSavedAt, setLastSavedAt] =
-    useState<Date | null>(null);
+  const [
+    lastSavedAt,
+    setLastSavedAt,
+  ] =
+    useState<Date | null>(
+      null,
+    );
 
-  const [isPanning, setIsPanning] =
-    useState(false);
+  const [
+    isPanning,
+    setIsPanning,
+  ] = useState(false);
 
-  const [activeTool, setActiveTool] =
-    useState<ViewerTool>("pan");
+  const [
+    activeTool,
+    setActiveTool,
+  ] =
+    useState<ViewerTool>(
+      "pan",
+    );
 
   const [
     calibrationAxis,
     setCalibrationAxis,
-  ] = useState<CalibrationAxis>("primary");
+  ] =
+    useState<CalibrationAxis>(
+      "primary",
+    );
 
   const [
     calibrationStart,
     setCalibrationStart,
-  ] = useState<Point | null>(null);
+  ] =
+    useState<Point | null>(
+      null,
+    );
 
   const [
     calibrationEnd,
     setCalibrationEnd,
-  ] = useState<Point | null>(null);
+  ] =
+    useState<Point | null>(
+      null,
+    );
 
   const [
     calibrationDrafts,
     setCalibrationDrafts,
   ] = useState<
-    Record<number, CalibrationDraft>
+    Record<
+      number,
+      CalibrationDraft
+    >
   >({});
 
-  const [calibrations, setCalibrations] =
-    useState<Record<number, Calibration>>(
-      {},
-    );
+  const [
+    calibrations,
+    setCalibrations,
+  ] = useState<
+    Record<
+      number,
+      Calibration
+    >
+  >({});
+
+  const [
+    retainScaleAcrossPages,
+    setRetainScaleAcrossPages,
+  ] =
+    useState(false);
 
   const [
     measurementStart,
     setMeasurementStart,
-  ] = useState<Point | null>(null);
+  ] =
+    useState<Point | null>(
+      null,
+    );
 
   const [
     measurementEnd,
     setMeasurementEnd,
-  ] = useState<Point | null>(null);
+  ] =
+    useState<Point | null>(
+      null,
+    );
 
-  const [measurements, setMeasurements] =
-    useState<Measurement[]>([]);
+  const [
+    measurements,
+    setMeasurements,
+  ] =
+    useState<Measurement[]>(
+      [],
+    );
 
-  const [areaBoxes, setAreaBoxes] =
-    useState<AreaBox[]>([]);
+  const [
+    areaBoxes,
+    setAreaBoxes,
+  ] =
+    useState<AreaBox[]>(
+      [],
+    );
 
   const [
     areaDrawingStep,
     setAreaDrawingStep,
-  ] = useState<AreaDrawingStep>(
-    "first-line",
-  );
+  ] =
+    useState<AreaDrawingStep>(
+      "first-line",
+    );
 
   const [
     areaLineStart,
     setAreaLineStart,
-  ] = useState<Point | null>(null);
+  ] =
+    useState<Point | null>(
+      null,
+    );
 
   const [
     areaLineEnd,
     setAreaLineEnd,
-  ] = useState<Point | null>(null);
+  ] =
+    useState<Point | null>(
+      null,
+    );
 
   const [
     firstAreaLine,
     setFirstAreaLine,
-  ] = useState<Line | null>(null);
+  ] =
+    useState<Line | null>(
+      null,
+    );
 
   const [
     isDistanceModalOpen,
     setIsDistanceModalOpen,
-  ] = useState(false);
+  ] =
+    useState(false);
 
-  const [distanceInput, setDistanceInput] =
-    useState("");
+  const [
+    distanceInput,
+    setDistanceInput,
+  ] = useState("");
 
-  const [distanceUnit, setDistanceUnit] =
-    useState<CalibrationUnit>("mm");
+  const [
+    distanceUnit,
+    setDistanceUnit,
+  ] =
+    useState<CalibrationUnit>(
+      "mm",
+    );
 
-  const [viewerError, setViewerError] =
-    useState("");
+  const [
+    viewerError,
+    setViewerError,
+  ] = useState("");
 
   const [
     selectedWallCategory,
     setSelectedWallCategory,
-  ] = useState<MeasurementCategory>("gfw");
+  ] =
+    useState<MeasurementCategory>(
+      "gfw",
+    );
 
   const [
     assignedPageWallTotals,
     setAssignedPageWallTotals,
   ] = useState<
-    Record<number, AssignedPageWallTotal>
+    Record<
+      number,
+      AssignedPageWallTotal
+    >
   >({});
 
   const [
     assignedPageAreaTotals,
     setAssignedPageAreaTotals,
   ] = useState<
-    Record<string, AssignedPageAreaTotal>
+    Record<
+      string,
+      AssignedPageAreaTotal
+    >
   >({});
 
-  const currentCalibration =
+  /*
+   * -------------------------------------------------------
+   * SCALE RETENTION
+   * -------------------------------------------------------
+   *
+   * pageCalibration:
+   * The scale specifically saved for the current page.
+   *
+   * retainedScale:
+   * If Retain Scale is enabled and the current page does
+   * not have its own calibration, find the most recently
+   * calibrated page before it.
+   *
+   * If there is no earlier calibrated page, use the first
+   * calibrated page in the PDF.
+   *
+   * A page-specific calibration always has priority.
+   */
+
+  const pageCalibration =
     calibrations[pageNumber];
 
+  const retainedScale =
+    useMemo(() => {
+      if (
+        !retainScaleAcrossPages
+      ) {
+        return null;
+      }
+
+      const calibratedPages =
+        Object.keys(
+          calibrations,
+        )
+          .map(Number)
+          .filter(
+            (page) =>
+              Number.isFinite(
+                page,
+              ),
+          )
+          .sort(
+            (a, b) =>
+              a - b,
+          );
+
+      if (
+        calibratedPages.length ===
+        0
+      ) {
+        return null;
+      }
+
+      const previousPages =
+        calibratedPages.filter(
+          (page) =>
+            page <
+            pageNumber,
+        );
+
+      const sourcePage =
+        previousPages.length >
+        0
+          ? previousPages[
+              previousPages.length -
+                1
+            ]
+          : calibratedPages[0];
+
+      const calibration =
+        calibrations[
+          sourcePage
+        ];
+
+      if (!calibration) {
+        return null;
+      }
+
+      return {
+        sourcePage,
+        calibration,
+      };
+    }, [
+      calibrations,
+      pageNumber,
+      retainScaleAcrossPages,
+    ]);
+
+  const currentCalibration =
+    pageCalibration ??
+    retainedScale?.calibration;
+
+  const isUsingRetainedScale =
+    retainScaleAcrossPages &&
+    !pageCalibration &&
+    Boolean(
+      retainedScale?.calibration,
+    );
+
   const currentCalibrationDraft =
-    calibrationDrafts[pageNumber] ?? {};
+    calibrationDrafts[
+      pageNumber
+    ] ?? {};
 
   const currentWallAssignment =
-    assignedPageWallTotals[pageNumber];
+    assignedPageWallTotals[
+      pageNumber
+    ];
 
   const currentFloorAssignment =
     assignedPageAreaTotals[
@@ -604,146 +867,210 @@ export default function PdfViewer({
       )
     ];
 
-  const currentMeasurements = useMemo(
-    () =>
-      measurements.filter(
-        (measurement) =>
-          measurement.pageNumber ===
-          pageNumber,
-      ),
-    [measurements, pageNumber],
-  );
+  const currentMeasurements =
+    useMemo(
+      () =>
+        measurements.filter(
+          (
+            measurement,
+          ) =>
+            measurement.pageNumber ===
+            pageNumber,
+        ),
+      [
+        measurements,
+        pageNumber,
+      ],
+    );
 
-  const currentFloorBoxes = useMemo(
-    () =>
-      areaBoxes.filter(
-        (box) =>
-          box.pageNumber === pageNumber &&
-          box.category === "floor",
-      ),
-    [areaBoxes, pageNumber],
-  );
+  const currentFloorBoxes =
+    useMemo(
+      () =>
+        areaBoxes.filter(
+          (box) =>
+            box.pageNumber ===
+              pageNumber &&
+            box.category ===
+              "floor",
+        ),
+      [
+        areaBoxes,
+        pageNumber,
+      ],
+    );
 
-  const currentRoofBoxes = useMemo(
-    () =>
-      areaBoxes.filter(
-        (box) =>
-          box.pageNumber === pageNumber &&
-          box.category === "roof",
-      ),
-    [areaBoxes, pageNumber],
-  );
+  const currentRoofBoxes =
+    useMemo(
+      () =>
+        areaBoxes.filter(
+          (box) =>
+            box.pageNumber ===
+              pageNumber &&
+            box.category ===
+              "roof",
+        ),
+      [
+        areaBoxes,
+        pageNumber,
+      ],
+    );
 
-  const currentWallTotalMm = useMemo(
-    () =>
-      currentMeasurements.reduce(
-        (total, measurement) =>
-          total + measurement.distanceMm,
-        0,
-      ),
-    [currentMeasurements],
-  );
+  const currentWallTotalMm =
+    useMemo(
+      () =>
+        currentMeasurements.reduce(
+          (
+            total,
+            measurement,
+          ) =>
+            total +
+            measurement.distanceMm,
+          0,
+        ),
+      [
+        currentMeasurements,
+      ],
+    );
 
-  const currentFloorTotalM2 = useMemo(
-    () =>
-      currentFloorBoxes.reduce(
-        (total, box) =>
-          total + box.areaM2,
-        0,
-      ),
-    [currentFloorBoxes],
-  );
+  const currentFloorTotalM2 =
+    useMemo(
+      () =>
+        currentFloorBoxes.reduce(
+          (
+            total,
+            box,
+          ) =>
+            total +
+            box.areaM2,
+          0,
+        ),
+      [
+        currentFloorBoxes,
+      ],
+    );
 
-  const currentRoofTotalM2 = useMemo(
-    () =>
-      currentRoofBoxes.reduce(
-        (total, box) =>
-          total + box.areaM2,
-        0,
-      ),
-    [currentRoofBoxes],
-  );
+  const currentRoofTotalM2 =
+    useMemo(
+      () =>
+        currentRoofBoxes.reduce(
+          (
+            total,
+            box,
+          ) =>
+            total +
+            box.areaM2,
+          0,
+        ),
+      [
+        currentRoofBoxes,
+      ],
+    );
 
-  const assignedTotals = useMemo(() => {
-    const wallTotals = Object.values(
+  const assignedTotals =
+    useMemo(() => {
+      const wallTotals =
+        Object.values(
+          assignedPageWallTotals,
+        ).reduce(
+          (
+            totals,
+            item,
+          ) => {
+            totals[
+              item.category
+            ] +=
+              item.totalMm;
+
+            return totals;
+          },
+          {
+            gfw: 0,
+            ffw: 0,
+          } satisfies Record<
+            MeasurementCategory,
+            number
+          >,
+        );
+
+      const areaTotals =
+        Object.values(
+          assignedPageAreaTotals,
+        ).reduce(
+          (
+            totals,
+            item,
+          ) => {
+            totals[
+              item.category
+            ] +=
+              item.totalM2;
+
+            return totals;
+          },
+          {
+            floor: 0,
+            roof: 0,
+          } satisfies Record<
+            AreaCategory,
+            number
+          >,
+        );
+
+      return {
+        ...wallTotals,
+        ...areaTotals,
+      };
+    }, [
       assignedPageWallTotals,
-    ).reduce(
-      (totals, item) => {
-        totals[item.category] +=
-          item.totalMm;
-
-        return totals;
-      },
-      {
-        gfw: 0,
-        ffw: 0,
-      } satisfies Record<
-        MeasurementCategory,
-        number
-      >,
-    );
-
-    const areaTotals = Object.values(
       assignedPageAreaTotals,
-    ).reduce(
-      (totals, item) => {
-        totals[item.category] +=
-          item.totalM2;
-
-        return totals;
-      },
-      {
-        floor: 0,
-        roof: 0,
-      } satisfies Record<
-        AreaCategory,
-        number
-      >,
-    );
-
-    return {
-      ...wallTotals,
-      ...areaTotals,
-    };
-  }, [
-    assignedPageWallTotals,
-    assignedPageAreaTotals,
-  ]);
+    ]);
 
   useEffect(() => {
-    scaleRef.current = scale;
+    scaleRef.current =
+      scale;
   }, [scale]);
 
   useEffect(() => {
-    pageWidthRef.current = pageWidth;
+    pageWidthRef.current =
+      pageWidth;
   }, [pageWidth]);
 
   useEffect(() => {
-    panRef.current = pan;
+    panRef.current =
+      pan;
   }, [pan]);
 
   useEffect(() => {
-    activeToolRef.current = activeTool;
+    activeToolRef.current =
+      activeTool;
   }, [activeTool]);
 
   useEffect(() => {
     modalOpenRef.current =
       isDistanceModalOpen;
-  }, [isDistanceModalOpen]);
+  }, [
+    isDistanceModalOpen,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadTakeoff() {
-      hasLoadedTakeoffRef.current = false;
-      setIsLoadingTakeoff(true);
+      hasLoadedTakeoffRef.current =
+        false;
+
+      setIsLoadingTakeoff(
+        true,
+      );
+
       setSaveError("");
       setLastSavedAt(null);
 
       try {
-        const response = await fetch(
-          `${API_URL}/api/quoted-jobs/${jobId}`,
-        );
+        const response =
+          await fetch(
+            `${API_URL}/api/quoted-jobs/${jobId}`,
+          );
 
         const job =
           await readJsonResponse<{
@@ -757,9 +1084,10 @@ export default function PdfViewer({
           return;
         }
 
-        const saved = parseSavedTakeoff(
-          job.takeoff,
-        );
+        const saved =
+          parseSavedTakeoff(
+            job.takeoff,
+          );
 
         setCalibrations(
           saved.calibrations,
@@ -781,7 +1109,13 @@ export default function PdfViewer({
           saved.assignedPageAreaTotals,
         );
 
-        setCalibrationDrafts({});
+        setRetainScaleAcrossPages(
+          saved.retainScaleAcrossPages,
+        );
+
+        setCalibrationDrafts(
+          {},
+        );
       } catch (error) {
         if (cancelled) {
           return;
@@ -799,7 +1133,9 @@ export default function PdfViewer({
         );
       } finally {
         if (!cancelled) {
-          setIsLoadingTakeoff(false);
+          setIsLoadingTakeoff(
+            false,
+          );
 
           hasLoadedTakeoffRef.current =
             true;
@@ -812,83 +1148,103 @@ export default function PdfViewer({
     return () => {
       cancelled = true;
     };
-  }, [jobId, file]);
+  }, [
+    jobId,
+    file,
+  ]);
 
   useEffect(() => {
-    if (!hasLoadedTakeoffRef.current) {
+    if (
+      !hasLoadedTakeoffRef.current
+    ) {
       return;
     }
 
-    const timeoutId = window.setTimeout(
-      async () => {
-        const takeoff: SavedTakeoff = {
-          calibrations,
-          measurements,
-          areaBoxes,
-          assignedPageWallTotals,
-          assignedPageAreaTotals,
-        };
-
-        setIsSaving(true);
-        setSaveError("");
-
-        try {
-          const response = await fetch(
-            `${API_URL}/api/quoted-jobs/${jobId}`,
+    const timeoutId =
+      window.setTimeout(
+        async () => {
+          const takeoff: SavedTakeoff =
             {
-              method: "PATCH",
+              calibrations,
+              measurements,
+              areaBoxes,
+              assignedPageWallTotals,
+              assignedPageAreaTotals,
+              retainScaleAcrossPages,
+            };
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
+          setIsSaving(true);
+          setSaveError("");
 
-              body: JSON.stringify({
-                takeoff,
+          try {
+            const response =
+              await fetch(
+                `${API_URL}/api/quoted-jobs/${jobId}`,
+                {
+                  method:
+                    "PATCH",
 
-                gfw:
-                  assignedTotals.gfw /
-                  1000,
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
 
-                ffw:
-                  assignedTotals.ffw /
-                  1000,
+                  body:
+                    JSON.stringify(
+                      {
+                        takeoff,
 
-                floor:
-                  assignedTotals.floor,
+                        gfw:
+                          assignedTotals.gfw /
+                          1000,
 
-                roof:
-                  assignedTotals.roof,
-              }),
-            },
-          );
+                        ffw:
+                          assignedTotals.ffw /
+                          1000,
 
-          await readJsonResponse(
-            response,
-            "Unable to save takeoff",
-          );
+                        floor:
+                          assignedTotals.floor,
 
-          setLastSavedAt(new Date());
-        } catch (error) {
-          console.error(
-            "Unable to save takeoff:",
-            error,
-          );
+                        roof:
+                          assignedTotals.roof,
+                      },
+                    ),
+                },
+              );
 
-          setSaveError(
-            error instanceof Error
-              ? error.message
-              : "Unable to save takeoff.",
-          );
-        } finally {
-          setIsSaving(false);
-        }
-      },
-      SAVE_DELAY_MS,
-    );
+            await readJsonResponse(
+              response,
+              "Unable to save takeoff",
+            );
+
+            setLastSavedAt(
+              new Date(),
+            );
+          } catch (error) {
+            console.error(
+              "Unable to save takeoff:",
+              error,
+            );
+
+            setSaveError(
+              error instanceof
+                Error
+                ? error.message
+                : "Unable to save takeoff.",
+            );
+          } finally {
+            setIsSaving(
+              false,
+            );
+          }
+        },
+        SAVE_DELAY_MS,
+      );
 
     return () => {
-      window.clearTimeout(timeoutId);
+      window.clearTimeout(
+        timeoutId,
+      );
     };
   }, [
     jobId,
@@ -897,6 +1253,7 @@ export default function PdfViewer({
     areaBoxes,
     assignedPageWallTotals,
     assignedPageAreaTotals,
+    retainScaleAcrossPages,
     assignedTotals.gfw,
     assignedTotals.ffw,
     assignedTotals.floor,
@@ -910,8 +1267,12 @@ export default function PdfViewer({
     setScale(1);
     scaleRef.current = 1;
 
-    setPageWidth(undefined);
-    pageWidthRef.current = undefined;
+    setPageWidth(
+      undefined,
+    );
+
+    pageWidthRef.current =
+      undefined;
 
     const initialPan = {
       x: 0,
@@ -919,27 +1280,37 @@ export default function PdfViewer({
     };
 
     setPan(initialPan);
-    panRef.current = initialPan;
+
+    panRef.current =
+      initialPan;
 
     setIsPanning(false);
 
     setActiveTool("pan");
-    activeToolRef.current = "pan";
+
+    activeToolRef.current =
+      "pan";
 
     resetDrawingState();
 
     setViewerError("");
-    dragStartRef.current = null;
+
+    dragStartRef.current =
+      null;
   }, [file]);
 
   useEffect(() => {
     setActiveTool("pan");
-    activeToolRef.current = "pan";
+
+    activeToolRef.current =
+      "pan";
 
     resetDrawingState();
 
     const assignment =
-      assignedPageWallTotals[pageNumber];
+      assignedPageWallTotals[
+        pageNumber
+      ];
 
     if (assignment) {
       setSelectedWallCategory(
@@ -953,9 +1324,13 @@ export default function PdfViewer({
     };
 
     setPan(nextPan);
-    panRef.current = nextPan;
 
-    dragStartRef.current = null;
+    panRef.current =
+      nextPan;
+
+    dragStartRef.current =
+      null;
+
     setIsPanning(false);
     setViewerError("");
   }, [
@@ -986,13 +1361,19 @@ export default function PdfViewer({
           dragStart.mouseY,
       };
 
-      panRef.current = nextPan;
+      panRef.current =
+        nextPan;
+
       setPan(nextPan);
     }
 
     function handleMouseUp() {
-      dragStartRef.current = null;
-      setIsPanning(false);
+      dragStartRef.current =
+        null;
+
+      setIsPanning(
+        false,
+      );
     }
 
     window.addEventListener(
@@ -1019,7 +1400,8 @@ export default function PdfViewer({
   }, []);
 
   useEffect(() => {
-    const viewport = viewportRef.current;
+    const viewport =
+      viewportRef.current;
 
     if (!viewport) {
       return;
@@ -1038,7 +1420,9 @@ export default function PdfViewer({
       event.preventDefault();
       event.stopPropagation();
 
-      if (modalOpenRef.current) {
+      if (
+        modalOpenRef.current
+      ) {
         return;
       }
 
@@ -1046,10 +1430,12 @@ export default function PdfViewer({
         currentViewport.getBoundingClientRect();
 
       const cursorX =
-        event.clientX - bounds.left;
+        event.clientX -
+        bounds.left;
 
       const cursorY =
-        event.clientY - bounds.top;
+        event.clientY -
+        bounds.top;
 
       const currentScale =
         pageWidthRef.current
@@ -1057,55 +1443,77 @@ export default function PdfViewer({
           : scaleRef.current;
 
       const direction =
-        event.deltaY < 0 ? 1 : -1;
+        event.deltaY < 0
+          ? 1
+          : -1;
 
-      const nextScale = clamp(
-        Number(
-          (
-            currentScale +
-            direction * SCALE_STEP
-          ).toFixed(2),
-        ),
-        MIN_SCALE,
-        MAX_SCALE,
-      );
+      const nextScale =
+        clamp(
+          Number(
+            (
+              currentScale +
+              direction *
+                SCALE_STEP
+            ).toFixed(2),
+          ),
+          MIN_SCALE,
+          MAX_SCALE,
+        );
 
       if (
-        nextScale === currentScale &&
-        pageWidthRef.current === undefined
+        nextScale ===
+          currentScale &&
+        pageWidthRef.current ===
+          undefined
       ) {
         return;
       }
 
       const ratio =
-        nextScale / currentScale;
+        nextScale /
+        currentScale;
 
       const centredCursorX =
-        cursorX - bounds.width / 2;
+        cursorX -
+        bounds.width / 2;
 
       const centredCursorY =
-        cursorY - bounds.height / 2;
+        cursorY -
+        bounds.height / 2;
 
       const nextPan = {
         x:
           centredCursorX -
           (centredCursorX -
-            panRef.current.x) *
+            panRef.current
+              .x) *
             ratio,
 
         y:
           centredCursorY -
           (centredCursorY -
-            panRef.current.y) *
+            panRef.current
+              .y) *
             ratio,
       };
 
-      pageWidthRef.current = undefined;
-      scaleRef.current = nextScale;
-      panRef.current = nextPan;
+      pageWidthRef.current =
+        undefined;
 
-      setPageWidth(undefined);
-      setScale(nextScale);
+      scaleRef.current =
+        nextScale;
+
+      panRef.current =
+        nextPan;
+
+      setPageWidth(
+        undefined,
+      );
+
+      setScale(
+        nextScale,
+      );
+
       setPan(nextPan);
     }
 
@@ -1126,34 +1534,67 @@ export default function PdfViewer({
   }, []);
 
   function resetDrawingState() {
-    setCalibrationAxis("primary");
-    setCalibrationStart(null);
-    setCalibrationEnd(null);
+    setCalibrationAxis(
+      "primary",
+    );
 
-    setMeasurementStart(null);
-    setMeasurementEnd(null);
+    setCalibrationStart(
+      null,
+    );
+
+    setCalibrationEnd(
+      null,
+    );
+
+    setMeasurementStart(
+      null,
+    );
+
+    setMeasurementEnd(
+      null,
+    );
 
     resetAreaDrawing();
 
-    setIsDistanceModalOpen(false);
+    setIsDistanceModalOpen(
+      false,
+    );
+
     setDistanceInput("");
   }
 
   function resetAreaDrawing() {
-    setAreaDrawingStep("first-line");
-    setAreaLineStart(null);
-    setAreaLineEnd(null);
-    setFirstAreaLine(null);
+    setAreaDrawingStep(
+      "first-line",
+    );
+
+    setAreaLineStart(
+      null,
+    );
+
+    setAreaLineEnd(
+      null,
+    );
+
+    setFirstAreaLine(
+      null,
+    );
   }
 
   function getCurrentAreaCategory():
     | AreaCategory
     | null {
-    if (activeTool === "measure-floor") {
+    if (
+      activeTool ===
+      "measure-floor"
+    ) {
       return "floor";
     }
 
-    if (activeTool === "measure-roof") {
+    if (
+      activeTool ===
+      "measure-roof"
+    ) {
       return "roof";
     }
 
@@ -1172,66 +1613,106 @@ export default function PdfViewer({
       return null;
     }
 
-    return bounds.width / bounds.height;
+    return (
+      bounds.width /
+      bounds.height
+    );
   }
 
-  function updateScale(nextScale: number) {
-    scaleRef.current = nextScale;
-    setScale(nextScale);
+  function updateScale(
+    nextScale: number,
+  ) {
+    scaleRef.current =
+      nextScale;
+
+    setScale(
+      nextScale,
+    );
   }
 
-  function updatePan(nextPan: PanPosition) {
-    panRef.current = nextPan;
-    setPan(nextPan);
+  function updatePan(
+    nextPan: PanPosition,
+  ) {
+    panRef.current =
+      nextPan;
+
+    setPan(
+      nextPan,
+    );
   }
 
   function applyButtonZoom(
     nextScale: number,
   ) {
     const currentScale =
-      pageWidth ? 1 : scale;
+      pageWidth
+        ? 1
+        : scale;
 
-    const clampedScale = clamp(
-      nextScale,
-      MIN_SCALE,
-      MAX_SCALE,
-    );
+    const clampedScale =
+      clamp(
+        nextScale,
+        MIN_SCALE,
+        MAX_SCALE,
+      );
 
     const ratio =
-      clampedScale / currentScale;
+      clampedScale /
+      currentScale;
 
-    pageWidthRef.current = undefined;
-    setPageWidth(undefined);
+    pageWidthRef.current =
+      undefined;
 
-    updateScale(clampedScale);
+    setPageWidth(
+      undefined,
+    );
+
+    updateScale(
+      clampedScale,
+    );
 
     updatePan({
-      x: panRef.current.x * ratio,
-      y: panRef.current.y * ratio,
+      x:
+        panRef.current.x *
+        ratio,
+
+      y:
+        panRef.current.y *
+        ratio,
     });
   }
 
   function zoomIn() {
     const currentScale =
-      pageWidth ? 1 : scale;
+      pageWidth
+        ? 1
+        : scale;
 
     applyButtonZoom(
-      currentScale + SCALE_STEP,
+      currentScale +
+        SCALE_STEP,
     );
   }
 
   function zoomOut() {
     const currentScale =
-      pageWidth ? 1 : scale;
+      pageWidth
+        ? 1
+        : scale;
 
     applyButtonZoom(
-      currentScale - SCALE_STEP,
+      currentScale -
+        SCALE_STEP,
     );
   }
 
   function resetView() {
-    pageWidthRef.current = undefined;
-    setPageWidth(undefined);
+    pageWidthRef.current =
+      undefined;
+
+    setPageWidth(
+      undefined,
+    );
 
     updateScale(1);
 
@@ -1243,19 +1724,25 @@ export default function PdfViewer({
 
   function fitToWidth() {
     const viewportWidth =
-      viewportRef.current?.clientWidth;
+      viewportRef.current
+        ?.clientWidth;
 
     if (!viewportWidth) {
       return;
     }
 
-    const fittedWidth = Math.max(
-      viewportWidth - 64,
-      300,
-    );
+    const fittedWidth =
+      Math.max(
+        viewportWidth - 64,
+        300,
+      );
 
-    pageWidthRef.current = fittedWidth;
-    setPageWidth(fittedWidth);
+    pageWidthRef.current =
+      fittedWidth;
+
+    setPageWidth(
+      fittedWidth,
+    );
 
     updateScale(1);
 
@@ -1265,17 +1752,33 @@ export default function PdfViewer({
     });
   }
 
-  function selectTool(tool: ViewerTool) {
-    dragStartRef.current = null;
+  function selectTool(
+    tool: ViewerTool,
+  ) {
+    dragStartRef.current =
+      null;
 
-    setIsPanning(false);
+    setIsPanning(
+      false,
+    );
+
     setViewerError("");
 
-    setCalibrationStart(null);
-    setCalibrationEnd(null);
+    setCalibrationStart(
+      null,
+    );
 
-    setMeasurementStart(null);
-    setMeasurementEnd(null);
+    setCalibrationEnd(
+      null,
+    );
+
+    setMeasurementStart(
+      null,
+    );
+
+    setMeasurementEnd(
+      null,
+    );
 
     resetAreaDrawing();
 
@@ -1288,32 +1791,44 @@ export default function PdfViewer({
         "Complete both scale directions before measuring.",
       );
 
-      setActiveTool("pan");
-      activeToolRef.current = "pan";
+      setActiveTool(
+        "pan",
+      );
+
+      activeToolRef.current =
+        "pan";
 
       return;
     }
 
-    if (tool === "calibrate") {
-      setCalibrationAxis("primary");
+    if (
+      tool === "calibrate"
+    ) {
+      setCalibrationAxis(
+        "primary",
+      );
 
       setCalibrationDrafts(
         (current) => ({
           ...current,
+
           [pageNumber]: {},
         }),
       );
     }
 
     setActiveTool(tool);
-    activeToolRef.current = tool;
+
+    activeToolRef.current =
+      tool;
   }
 
   function handlePanStart(
     event: ReactMouseEvent<HTMLDivElement>,
   ) {
     if (
-      activeToolRef.current !== "pan" ||
+      activeToolRef.current !==
+        "pan" ||
       modalOpenRef.current ||
       event.button !== 0
     ) {
@@ -1334,13 +1849,22 @@ export default function PdfViewer({
     event.preventDefault();
 
     dragStartRef.current = {
-      mouseX: event.clientX,
-      mouseY: event.clientY,
-      panX: panRef.current.x,
-      panY: panRef.current.y,
+      mouseX:
+        event.clientX,
+
+      mouseY:
+        event.clientY,
+
+      panX:
+        panRef.current.x,
+
+      panY:
+        panRef.current.y,
     };
 
-    setIsPanning(true);
+    setIsPanning(
+      true,
+    );
   }
 
   function getRelativePoint(
@@ -1359,14 +1883,16 @@ export default function PdfViewer({
 
     return {
       x: clamp(
-        (event.clientX - bounds.left) /
+        (event.clientX -
+          bounds.left) /
           bounds.width,
         0,
         1,
       ),
 
       y: clamp(
-        (event.clientY - bounds.top) /
+        (event.clientY -
+          bounds.top) /
           bounds.height,
         0,
         1,
@@ -1381,29 +1907,45 @@ export default function PdfViewer({
     event.stopPropagation();
 
     const point =
-      getRelativePoint(event);
+      getRelativePoint(
+        event,
+      );
 
     if (!point) {
       return;
     }
 
-    if (activeTool === "calibrate") {
-      handleCalibrationPoint(point);
+    if (
+      activeTool ===
+      "calibrate"
+    ) {
+      handleCalibrationPoint(
+        point,
+      );
+
       return;
     }
 
     if (
-      activeTool === "measure-walls"
+      activeTool ===
+      "measure-walls"
     ) {
-      handleWallMeasurementPoint(point);
+      handleWallMeasurementPoint(
+        point,
+      );
+
       return;
     }
 
     if (
-      activeTool === "measure-floor" ||
-      activeTool === "measure-roof"
+      activeTool ===
+        "measure-floor" ||
+      activeTool ===
+        "measure-roof"
     ) {
-      handleAreaPoint(point);
+      handleAreaPoint(
+        point,
+      );
     }
   }
 
@@ -1411,8 +1953,14 @@ export default function PdfViewer({
     point: Point,
   ) {
     if (!calibrationStart) {
-      setCalibrationStart(point);
-      setCalibrationEnd(null);
+      setCalibrationStart(
+        point,
+      );
+
+      setCalibrationEnd(
+        null,
+      );
+
       setViewerError("");
 
       return;
@@ -1429,14 +1977,17 @@ export default function PdfViewer({
       return;
     }
 
-    const vector = getPageSpaceVector(
-      calibrationStart,
-      point,
-      pageAspectRatio,
-    );
+    const vector =
+      getPageSpaceVector(
+        calibrationStart,
+        point,
+        pageAspectRatio,
+      );
 
     const pageSpaceLength =
-      getVectorLength(vector);
+      getVectorLength(
+        vector,
+      );
 
     if (
       pageSpaceLength <
@@ -1450,17 +2001,25 @@ export default function PdfViewer({
     }
 
     if (
-      calibrationAxis === "secondary" &&
+      calibrationAxis ===
+        "secondary" &&
       currentCalibrationDraft.primaryAxis
     ) {
       const angleDifference =
         calculateAxisAngleDifference(
-          currentCalibrationDraft.primaryAxis
+          currentCalibrationDraft
+            .primaryAxis
             .unitVector,
-          normaliseVector(vector),
+
+          normaliseVector(
+            vector,
+          ),
         );
 
-      if (angleDifference < 20) {
+      if (
+        angleDifference <
+        20
+      ) {
         setViewerError(
           "The second scale direction is too close to the first.",
         );
@@ -1469,9 +2028,15 @@ export default function PdfViewer({
       }
     }
 
-    setCalibrationEnd(point);
+    setCalibrationEnd(
+      point,
+    );
+
     setDistanceInput("");
-    setIsDistanceModalOpen(true);
+
+    setIsDistanceModalOpen(
+      true,
+    );
   }
 
   function saveCalibrationAxis() {
@@ -1483,10 +2048,14 @@ export default function PdfViewer({
     }
 
     const enteredDistance =
-      Number(distanceInput);
+      Number(
+        distanceInput,
+      );
 
     if (
-      !Number.isFinite(enteredDistance) ||
+      !Number.isFinite(
+        enteredDistance,
+      ) ||
       enteredDistance <= 0
     ) {
       setViewerError(
@@ -1509,17 +2078,21 @@ export default function PdfViewer({
 
     const realDistanceMm =
       distanceUnit === "m"
-        ? enteredDistance * 1000
+        ? enteredDistance *
+          1000
         : enteredDistance;
 
-    const vector = getPageSpaceVector(
-      calibrationStart,
-      calibrationEnd,
-      pageAspectRatio,
-    );
+    const vector =
+      getPageSpaceVector(
+        calibrationStart,
+        calibrationEnd,
+        pageAspectRatio,
+      );
 
     const pageSpaceLength =
-      getVectorLength(vector);
+      getVectorLength(
+        vector,
+      );
 
     if (
       pageSpaceLength <
@@ -1534,19 +2107,29 @@ export default function PdfViewer({
 
     const axisCalibration: AxisCalibration =
       {
-        start: calibrationStart,
-        end: calibrationEnd,
+        start:
+          calibrationStart,
+
+        end:
+          calibrationEnd,
+
         realDistanceMm,
+
         pageSpaceLength,
+
         unitVector:
-          normaliseVector(vector),
+          normaliseVector(
+            vector,
+          ),
+
         mmPerPageUnit:
           realDistanceMm /
           pageSpaceLength,
       };
 
     if (
-      calibrationAxis === "primary"
+      calibrationAxis ===
+      "primary"
     ) {
       setCalibrationDrafts(
         (current) => ({
@@ -1559,11 +2142,24 @@ export default function PdfViewer({
         }),
       );
 
-      setCalibrationAxis("secondary");
-      setCalibrationStart(null);
-      setCalibrationEnd(null);
-      setIsDistanceModalOpen(false);
+      setCalibrationAxis(
+        "secondary",
+      );
+
+      setCalibrationStart(
+        null,
+      );
+
+      setCalibrationEnd(
+        null,
+      );
+
+      setIsDistanceModalOpen(
+        false,
+      );
+
       setDistanceInput("");
+
       setViewerError("");
 
       return;
@@ -1581,13 +2177,19 @@ export default function PdfViewer({
     }
 
     const determinant =
-      primaryAxis.unitVector.x *
-        axisCalibration.unitVector.y -
-      primaryAxis.unitVector.y *
-        axisCalibration.unitVector.x;
+      primaryAxis
+        .unitVector.x *
+        axisCalibration
+          .unitVector.y -
+      primaryAxis
+        .unitVector.y *
+        axisCalibration
+          .unitVector.x;
 
     if (
-      Math.abs(determinant) <
+      Math.abs(
+        determinant,
+      ) <
       MIN_AXIS_DETERMINANT
     ) {
       setViewerError(
@@ -1597,16 +2199,19 @@ export default function PdfViewer({
       return;
     }
 
-    setCalibrations((current) => ({
-      ...current,
+    setCalibrations(
+      (current) => ({
+        ...current,
 
-      [pageNumber]: {
-        pageNumber,
-        primaryAxis,
-        secondaryAxis:
-          axisCalibration,
-      },
-    }));
+        [pageNumber]: {
+          pageNumber,
+          primaryAxis,
+
+          secondaryAxis:
+            axisCalibration,
+        },
+      }),
+    );
 
     setCalibrationDrafts(
       (current) => ({
@@ -1614,32 +2219,57 @@ export default function PdfViewer({
 
         [pageNumber]: {
           primaryAxis,
+
           secondaryAxis:
             axisCalibration,
         },
       }),
     );
 
-    setCalibrationStart(null);
-    setCalibrationEnd(null);
-    setIsDistanceModalOpen(false);
+    setCalibrationStart(
+      null,
+    );
+
+    setCalibrationEnd(
+      null,
+    );
+
+    setIsDistanceModalOpen(
+      false,
+    );
+
     setDistanceInput("");
+
     setViewerError("");
 
-    setActiveTool("pan");
-    activeToolRef.current = "pan";
+    setActiveTool(
+      "pan",
+    );
+
+    activeToolRef.current =
+      "pan";
   }
 
   function handleWallMeasurementPoint(
     point: Point,
   ) {
-    if (!currentCalibration) {
+    if (
+      !currentCalibration
+    ) {
       return;
     }
 
-    if (!measurementStart) {
-      setMeasurementStart(point);
-      setMeasurementEnd(null);
+    if (
+      !measurementStart
+    ) {
+      setMeasurementStart(
+        point,
+      );
+
+      setMeasurementEnd(
+        null,
+      );
+
       setViewerError("");
 
       return;
@@ -1675,24 +2305,39 @@ export default function PdfViewer({
       return;
     }
 
-    setMeasurements((current) => [
-      ...current,
+    setMeasurements(
+      (current) => [
+        ...current,
 
-      {
-        id: createId(),
-        pageNumber,
-        start: measurementStart,
-        end: point,
-        distanceMm,
-      },
-    ]);
+        {
+          id: createId(),
 
-    setMeasurementStart(null);
-    setMeasurementEnd(null);
+          pageNumber,
+
+          start:
+            measurementStart,
+
+          end: point,
+
+          distanceMm,
+        },
+      ],
+    );
+
+    setMeasurementStart(
+      null,
+    );
+
+    setMeasurementEnd(
+      null,
+    );
+
     setViewerError("");
   }
 
-  function handleAreaPoint(point: Point) {
+  function handleAreaPoint(
+    point: Point,
+  ) {
     const category =
       getCurrentAreaCategory();
 
@@ -1704,25 +2349,46 @@ export default function PdfViewer({
     }
 
     if (!areaLineStart) {
-      setAreaLineStart(point);
-      setAreaLineEnd(null);
+      setAreaLineStart(
+        point,
+      );
+
+      setAreaLineEnd(
+        null,
+      );
+
       setViewerError("");
 
       return;
     }
 
-    const completedLine: Line = {
-      start: areaLineStart,
-      end: point,
-    };
+    const completedLine: Line =
+      {
+        start:
+          areaLineStart,
+
+        end: point,
+      };
 
     if (
-      areaDrawingStep === "first-line"
+      areaDrawingStep ===
+      "first-line"
     ) {
-      setFirstAreaLine(completedLine);
-      setAreaDrawingStep("second-line");
-      setAreaLineStart(null);
-      setAreaLineEnd(null);
+      setFirstAreaLine(
+        completedLine,
+      );
+
+      setAreaDrawingStep(
+        "second-line",
+      );
+
+      setAreaLineStart(
+        null,
+      );
+
+      setAreaLineEnd(
+        null,
+      );
 
       return;
     }
@@ -1749,7 +2415,9 @@ export default function PdfViewer({
     firstLine: Line,
     secondLine: Line,
   ) {
-    if (!currentCalibration) {
+    if (
+      !currentCalibration
+    ) {
       return;
     }
 
@@ -1803,8 +2471,11 @@ export default function PdfViewer({
         secondLine.start.y,
     };
 
-    const cornerOne = firstLine.start;
-    const cornerTwo = firstLine.end;
+    const cornerOne =
+      firstLine.start;
+
+    const cornerTwo =
+      firstLine.end;
 
     const cornerThree = {
       x:
@@ -1827,33 +2498,43 @@ export default function PdfViewer({
     };
 
     const areaM2 =
-      (lengthMm * widthMm) /
+      (lengthMm *
+        widthMm) /
       1_000_000;
 
-    setAreaBoxes((current) => [
-      ...current,
+    setAreaBoxes(
+      (current) => [
+        ...current,
 
-      {
-        id: createId(),
-        pageNumber,
-        category,
-        firstLine,
-        secondLine,
+        {
+          id: createId(),
 
-        corners: [
-          cornerOne,
-          cornerTwo,
-          cornerThree,
-          cornerFour,
-        ],
+          pageNumber,
 
-        lengthMm,
-        widthMm,
-        areaM2,
-      },
-    ]);
+          category,
+
+          firstLine,
+
+          secondLine,
+
+          corners: [
+            cornerOne,
+            cornerTwo,
+            cornerThree,
+            cornerFour,
+          ],
+
+          lengthMm,
+
+          widthMm,
+
+          areaM2,
+        },
+      ],
+    );
 
     resetAreaDrawing();
+
     setViewerError("");
   }
 
@@ -1861,40 +2542,51 @@ export default function PdfViewer({
     event: ReactMouseEvent<SVGSVGElement>,
   ) {
     const point =
-      getRelativePoint(event);
+      getRelativePoint(
+        event,
+      );
 
     if (!point) {
       return;
     }
 
     if (
-      activeTool === "calibrate" &&
+      activeTool ===
+        "calibrate" &&
       calibrationStart
     ) {
-      setCalibrationEnd(point);
+      setCalibrationEnd(
+        point,
+      );
     }
 
     if (
-      activeTool === "measure-walls" &&
+      activeTool ===
+        "measure-walls" &&
       measurementStart
     ) {
-      setMeasurementEnd(point);
+      setMeasurementEnd(
+        point,
+      );
     }
 
     if (
-      (
-        activeTool === "measure-floor" ||
-        activeTool === "measure-roof"
-      ) &&
+      (activeTool ===
+        "measure-floor" ||
+        activeTool ===
+          "measure-roof") &&
       areaLineStart
     ) {
-      setAreaLineEnd(point);
+      setAreaLineEnd(
+        point,
+      );
     }
   }
 
   function assignWallTotal() {
     if (
-      currentMeasurements.length === 0
+      currentMeasurements.length ===
+      0
     ) {
       setViewerError(
         "Add at least one wall measurement first.",
@@ -1909,10 +2601,13 @@ export default function PdfViewer({
 
         [pageNumber]: {
           pageNumber,
+
           category:
             selectedWallCategory,
+
           totalMm:
             currentWallTotalMm,
+
           measurementCount:
             currentMeasurements.length,
         },
@@ -1935,7 +2630,9 @@ export default function PdfViewer({
         ? currentFloorTotalM2
         : currentRoofTotalM2;
 
-    if (boxes.length === 0) {
+    if (
+      boxes.length === 0
+    ) {
       setViewerError(
         `Add at least one ${category} box first.`,
       );
@@ -1955,9 +2652,13 @@ export default function PdfViewer({
 
         [key]: {
           pageNumber,
+
           category,
+
           totalM2,
-          boxCount: boxes.length,
+
+          boxCount:
+            boxes.length,
         },
       }),
     );
@@ -1972,7 +2673,9 @@ export default function PdfViewer({
           ...current,
         };
 
-        delete next[pageNumber];
+        delete next[
+          pageNumber
+        ];
 
         return next;
       },
@@ -2001,137 +2704,202 @@ export default function PdfViewer({
     );
   }
 
-  function deleteMeasurement(id: string) {
-    setMeasurements((current) =>
-      current.filter(
-        (measurement) =>
-          measurement.id !== id,
-      ),
+  function deleteMeasurement(
+    id: string,
+  ) {
+    setMeasurements(
+      (current) =>
+        current.filter(
+          (
+            measurement,
+          ) =>
+            measurement.id !==
+            id,
+        ),
     );
   }
 
-  function deleteAreaBox(id: string) {
-    setAreaBoxes((current) =>
-      current.filter(
-        (box) => box.id !== id,
-      ),
+  function deleteAreaBox(
+    id: string,
+  ) {
+    setAreaBoxes(
+      (current) =>
+        current.filter(
+          (box) =>
+            box.id !== id,
+        ),
     );
   }
 
   function undoLastWall() {
-    setMeasurements((current) => {
-      let index = -1;
+    setMeasurements(
+      (current) => {
+        let index = -1;
 
-      for (
-        let itemIndex =
-          current.length - 1;
-        itemIndex >= 0;
-        itemIndex -= 1
-      ) {
-        if (
-          current[itemIndex].pageNumber ===
-          pageNumber
+        for (
+          let itemIndex =
+            current.length -
+            1;
+          itemIndex >= 0;
+          itemIndex -= 1
         ) {
-          index = itemIndex;
-          break;
+          if (
+            current[
+              itemIndex
+            ].pageNumber ===
+            pageNumber
+          ) {
+            index =
+              itemIndex;
+
+            break;
+          }
         }
-      }
 
-      if (index === -1) {
-        return current;
-      }
+        if (
+          index === -1
+        ) {
+          return current;
+        }
 
-      return current.filter(
-        (_, itemIndex) =>
-          itemIndex !== index,
-      );
-    });
+        return current.filter(
+          (
+            _,
+            itemIndex,
+          ) =>
+            itemIndex !==
+            index,
+        );
+      },
+    );
 
-    setMeasurementStart(null);
-    setMeasurementEnd(null);
+    setMeasurementStart(
+      null,
+    );
+
+    setMeasurementEnd(
+      null,
+    );
   }
 
   function undoLastArea(
     category: AreaCategory,
   ) {
-    setAreaBoxes((current) => {
-      let index = -1;
+    setAreaBoxes(
+      (current) => {
+        let index = -1;
 
-      for (
-        let itemIndex =
-          current.length - 1;
-        itemIndex >= 0;
-        itemIndex -= 1
-      ) {
-        const box =
-          current[itemIndex];
+        for (
+          let itemIndex =
+            current.length -
+            1;
+          itemIndex >= 0;
+          itemIndex -= 1
+        ) {
+          const box =
+            current[
+              itemIndex
+            ];
+
+          if (
+            box.pageNumber ===
+              pageNumber &&
+            box.category ===
+              category
+          ) {
+            index =
+              itemIndex;
+
+            break;
+          }
+        }
 
         if (
-          box.pageNumber ===
-            pageNumber &&
-          box.category === category
+          index === -1
         ) {
-          index = itemIndex;
-          break;
+          return current;
         }
-      }
 
-      if (index === -1) {
-        return current;
-      }
-
-      return current.filter(
-        (_, itemIndex) =>
-          itemIndex !== index,
-      );
-    });
+        return current.filter(
+          (
+            _,
+            itemIndex,
+          ) =>
+            itemIndex !==
+            index,
+        );
+      },
+    );
 
     resetAreaDrawing();
   }
 
   function clearWalls() {
-    setMeasurements((current) =>
-      current.filter(
-        (measurement) =>
-          measurement.pageNumber !==
-          pageNumber,
-      ),
+    setMeasurements(
+      (current) =>
+        current.filter(
+          (
+            measurement,
+          ) =>
+            measurement.pageNumber !==
+            pageNumber,
+        ),
     );
 
     removeWallAssignment();
 
-    setMeasurementStart(null);
-    setMeasurementEnd(null);
+    setMeasurementStart(
+      null,
+    );
+
+    setMeasurementEnd(
+      null,
+    );
   }
 
   function clearArea(
     category: AreaCategory,
   ) {
-    setAreaBoxes((current) =>
-      current.filter(
-        (box) =>
-          !(
-            box.pageNumber ===
-              pageNumber &&
-            box.category === category
-          ),
-      ),
+    setAreaBoxes(
+      (current) =>
+        current.filter(
+          (box) =>
+            !(
+              box.pageNumber ===
+                pageNumber &&
+              box.category ===
+                category
+            ),
+        ),
     );
 
-    removeAreaAssignment(category);
+    removeAreaAssignment(
+      category,
+    );
+
     resetAreaDrawing();
   }
 
   function resetCurrentScale() {
-    setCalibrations((current) => {
-      const next = {
-        ...current,
-      };
+    if (
+      !pageCalibration
+    ) {
+      return;
+    }
 
-      delete next[pageNumber];
+    setCalibrations(
+      (current) => {
+        const next = {
+          ...current,
+        };
 
-      return next;
-    });
+        delete next[
+          pageNumber
+        ];
+
+        return next;
+      },
+    );
 
     setCalibrationDrafts(
       (current) => {
@@ -2139,22 +2907,36 @@ export default function PdfViewer({
           ...current,
         };
 
-        delete next[pageNumber];
+        delete next[
+          pageNumber
+        ];
 
         return next;
       },
     );
 
     clearWalls();
-    clearArea("floor");
-    clearArea("roof");
 
-    setActiveTool("pan");
-    activeToolRef.current = "pan";
+    clearArea(
+      "floor",
+    );
+
+    clearArea(
+      "roof",
+    );
+
+    setActiveTool(
+      "pan",
+    );
+
+    activeToolRef.current =
+      "pan";
   }
 
   const displayedScale =
-    pageWidth ? 1 : scale;
+    pageWidth
+      ? 1
+      : scale;
 
   const activeAreaCategory =
     getCurrentAreaCategory();
@@ -2163,20 +2945,28 @@ export default function PdfViewer({
     activeTool !== "pan";
 
   const primaryAxisToDisplay =
-    activeTool === "calibrate"
+    activeTool ===
+    "calibrate"
       ? currentCalibrationDraft.primaryAxis
       : currentCalibration?.primaryAxis;
 
   const secondaryAxisToDisplay =
-    activeTool === "calibrate"
+    activeTool ===
+    "calibrate"
       ? currentCalibrationDraft.secondaryAxis
       : currentCalibration?.secondaryAxis;
 
-  const floorColour = "#16a34a";
-  const floorDarkColour = "#15803d";
+  const floorColour =
+    "#16a34a";
 
-  const roofColour = "#dc2626";
-  const roofDarkColour = "#b91c1c";
+  const floorDarkColour =
+    "#15803d";
+
+  const roofColour =
+    "#dc2626";
+
+  const roofDarkColour =
+    "#b91c1c";
 
   return (
     <div className="flex h-[calc(100vh-2rem)] min-h-[650px] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
@@ -2196,11 +2986,21 @@ export default function PdfViewer({
             PDF Takeoff
           </span>
 
-          {currentCalibration && (
+          {pageCalibration && (
             <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
               Scale set
             </span>
           )}
+
+          {isUsingRetainedScale &&
+            retainedScale && (
+              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                Retained from page{" "}
+                {
+                  retainedScale.sourcePage
+                }
+              </span>
+            )}
 
           {isLoadingTakeoff && (
             <span className="text-xs text-slate-500">
@@ -2231,20 +3031,25 @@ export default function PdfViewer({
               setPageNumber(
                 (current) =>
                   Math.max(
-                    current - 1,
+                    current -
+                      1,
                     1,
                   ),
               )
             }
-            disabled={pageNumber <= 1}
+            disabled={
+              pageNumber <= 1
+            }
             className="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
             Previous
           </button>
 
           <span className="min-w-24 text-center text-sm text-slate-700">
-            Page {pageNumber} of{" "}
-            {numberOfPages || "—"}
+            Page{" "}
+            {pageNumber} of{" "}
+            {numberOfPages ||
+              "—"}
           </span>
 
           <button
@@ -2253,7 +3058,8 @@ export default function PdfViewer({
               setPageNumber(
                 (current) =>
                   Math.min(
-                    current + 1,
+                    current +
+                      1,
                     numberOfPages,
                   ),
               )
@@ -2272,9 +3078,12 @@ export default function PdfViewer({
 
           <button
             type="button"
-            onClick={zoomOut}
+            onClick={
+              zoomOut
+            }
             disabled={
-              displayedScale <= MIN_SCALE
+              displayedScale <=
+              MIN_SCALE
             }
             className="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -2285,15 +3094,19 @@ export default function PdfViewer({
             {pageWidth
               ? "Fit"
               : `${Math.round(
-                  scale * 100,
+                  scale *
+                    100,
                 )}%`}
           </span>
 
           <button
             type="button"
-            onClick={zoomIn}
+            onClick={
+              zoomIn
+            }
             disabled={
-              displayedScale >= MAX_SCALE
+              displayedScale >=
+              MAX_SCALE
             }
             className="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -2302,7 +3115,9 @@ export default function PdfViewer({
 
           <button
             type="button"
-            onClick={fitToWidth}
+            onClick={
+              fitToWidth
+            }
             className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
           >
             Fit width
@@ -2310,7 +3125,9 @@ export default function PdfViewer({
 
           <button
             type="button"
-            onClick={resetView}
+            onClick={
+              resetView
+            }
             className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
           >
             Reset view
@@ -2322,10 +3139,13 @@ export default function PdfViewer({
         <button
           type="button"
           onClick={() =>
-            selectTool("pan")
+            selectTool(
+              "pan",
+            )
           }
           className={`rounded-md px-4 py-2 text-sm font-medium ${
-            activeTool === "pan"
+            activeTool ===
+            "pan"
               ? "bg-slate-800 text-white"
               : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
@@ -2336,25 +3156,52 @@ export default function PdfViewer({
         <button
           type="button"
           onClick={() =>
-            selectTool("calibrate")
+            selectTool(
+              "calibrate",
+            )
           }
           className={`rounded-md px-4 py-2 text-sm font-medium ${
-            activeTool === "calibrate"
+            activeTool ===
+            "calibrate"
               ? "bg-amber-500 text-white"
               : "border border-amber-300 bg-white text-amber-700 hover:bg-amber-50"
           }`}
         >
-          {currentCalibration
+          {pageCalibration
             ? "Recalibrate"
-            : "Set Scale"}
+            : isUsingRetainedScale
+              ? "Set Page Scale"
+              : "Set Scale"}
         </button>
 
         <button
           type="button"
           onClick={() =>
-            selectTool("measure-walls")
+            setRetainScaleAcrossPages(
+              (current) =>
+                !current,
+            )
           }
-          disabled={!currentCalibration}
+          className={`rounded-md px-4 py-2 text-sm font-medium ${
+            retainScaleAcrossPages
+              ? "bg-emerald-600 text-white"
+              : "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
+          }`}
+          title="Use the most recently calibrated page on pages that do not have their own scale."
+        >
+          Retain Scale
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            selectTool(
+              "measure-walls",
+            )
+          }
+          disabled={
+            !currentCalibration
+          }
           className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
             activeTool ===
             "measure-walls"
@@ -2368,9 +3215,13 @@ export default function PdfViewer({
         <button
           type="button"
           onClick={() =>
-            selectTool("measure-floor")
+            selectTool(
+              "measure-floor",
+            )
           }
-          disabled={!currentCalibration}
+          disabled={
+            !currentCalibration
+          }
           className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
             activeTool ===
             "measure-floor"
@@ -2384,9 +3235,13 @@ export default function PdfViewer({
         <button
           type="button"
           onClick={() =>
-            selectTool("measure-roof")
+            selectTool(
+              "measure-roof",
+            )
           }
-          disabled={!currentCalibration}
+          disabled={
+            !currentCalibration
+          }
           className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
             activeTool ===
             "measure-roof"
@@ -2400,7 +3255,9 @@ export default function PdfViewer({
         <div className="ml-auto flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={undoLastWall}
+            onClick={
+              undoLastWall
+            }
             disabled={
               currentMeasurements.length ===
               0
@@ -2413,7 +3270,9 @@ export default function PdfViewer({
           <button
             type="button"
             onClick={() =>
-              undoLastArea("floor")
+              undoLastArea(
+                "floor",
+              )
             }
             disabled={
               currentFloorBoxes.length ===
@@ -2427,7 +3286,9 @@ export default function PdfViewer({
           <button
             type="button"
             onClick={() =>
-              undoLastArea("roof")
+              undoLastArea(
+                "roof",
+              )
             }
             disabled={
               currentRoofBoxes.length ===
@@ -2438,10 +3299,12 @@ export default function PdfViewer({
             Undo Roof
           </button>
 
-          {currentCalibration && (
+          {pageCalibration && (
             <button
               type="button"
-              onClick={resetCurrentScale}
+              onClick={
+                resetCurrentScale
+              }
               className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
             >
               Reset Scale
@@ -2473,18 +3336,27 @@ export default function PdfViewer({
           </div>
 
           <p className="mt-1 text-xs text-slate-500">
-            {currentMeasurements.length} line
-            {currentMeasurements.length === 1
+            {
+              currentMeasurements.length
+            }{" "}
+            line
+            {currentMeasurements.length ===
+            1
               ? ""
               : "s"}
           </p>
 
           <div className="mt-3 flex gap-2">
             <select
-              value={selectedWallCategory}
-              onChange={(event) =>
+              value={
+                selectedWallCategory
+              }
+              onChange={(
+                event,
+              ) =>
                 setSelectedWallCategory(
-                  event.target
+                  event
+                    .target
                     .value as MeasurementCategory,
                 )
               }
@@ -2501,7 +3373,9 @@ export default function PdfViewer({
 
             <button
               type="button"
-              onClick={assignWallTotal}
+              onClick={
+                assignWallTotal
+              }
               disabled={
                 currentMeasurements.length ===
                 0
@@ -2535,7 +3409,9 @@ export default function PdfViewer({
 
           <button
             type="button"
-            onClick={clearWalls}
+            onClick={
+              clearWalls
+            }
             disabled={
               currentMeasurements.length ===
               0
@@ -2568,8 +3444,12 @@ export default function PdfViewer({
           </div>
 
           <p className="mt-1 text-xs text-slate-500">
-            {currentFloorBoxes.length} box
-            {currentFloorBoxes.length === 1
+            {
+              currentFloorBoxes.length
+            }{" "}
+            box
+            {currentFloorBoxes.length ===
+            1
               ? ""
               : "es"}
           </p>
@@ -2577,7 +3457,9 @@ export default function PdfViewer({
           <button
             type="button"
             onClick={() =>
-              assignAreaTotal("floor")
+              assignAreaTotal(
+                "floor",
+              )
             }
             disabled={
               currentFloorBoxes.length ===
@@ -2611,7 +3493,9 @@ export default function PdfViewer({
           <button
             type="button"
             onClick={() =>
-              clearArea("floor")
+              clearArea(
+                "floor",
+              )
             }
             disabled={
               currentFloorBoxes.length ===
@@ -2645,8 +3529,12 @@ export default function PdfViewer({
           </div>
 
           <p className="mt-1 text-xs text-slate-500">
-            {currentRoofBoxes.length} box
-            {currentRoofBoxes.length === 1
+            {
+              currentRoofBoxes.length
+            }{" "}
+            box
+            {currentRoofBoxes.length ===
+            1
               ? ""
               : "es"}
           </p>
@@ -2654,7 +3542,9 @@ export default function PdfViewer({
           <button
             type="button"
             onClick={() =>
-              assignAreaTotal("roof")
+              assignAreaTotal(
+                "roof",
+              )
             }
             disabled={
               currentRoofBoxes.length ===
@@ -2688,7 +3578,9 @@ export default function PdfViewer({
           <button
             type="button"
             onClick={() =>
-              clearArea("roof")
+              clearArea(
+                "roof",
+              )
             }
             disabled={
               currentRoofBoxes.length ===
@@ -2750,11 +3642,23 @@ export default function PdfViewer({
       </div>
 
       {currentCalibration && (
-        <div className="relative z-40 flex shrink-0 flex-wrap gap-4 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-800">
+        <div className="relative z-40 flex shrink-0 flex-wrap items-center gap-4 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-800">
+          {isUsingRetainedScale &&
+            retainedScale && (
+              <span className="font-semibold text-blue-700">
+                Using scale from
+                page{" "}
+                {
+                  retainedScale.sourcePage
+                }
+              </span>
+            )}
+
           <span>
             Axis 1:{" "}
             {formatCalibrationDistance(
-              currentCalibration.primaryAxis
+              currentCalibration
+                .primaryAxis
                 .realDistanceMm,
             )}
           </span>
@@ -2762,22 +3666,27 @@ export default function PdfViewer({
           <span>
             Axis 2:{" "}
             {formatCalibrationDistance(
-              currentCalibration.secondaryAxis
+              currentCalibration
+                .secondaryAxis
                 .realDistanceMm,
             )}
           </span>
         </div>
       )}
 
-      {(viewerError || saveError) && (
+      {(viewerError ||
+        saveError) && (
         <div className="relative z-40 shrink-0 border-b border-red-200 bg-red-50 px-4 py-2 text-center text-sm font-medium text-red-700">
-          {viewerError || saveError}
+          {viewerError ||
+            saveError}
         </div>
       )}
 
       <main
         ref={viewportRef}
-        onMouseDown={handlePanStart}
+        onMouseDown={
+          handlePanStart
+        }
         className={`relative min-h-0 flex-1 touch-none overflow-hidden bg-slate-200 ${
           interactiveOverlay
             ? "cursor-crosshair"
@@ -2802,7 +3711,8 @@ export default function PdfViewer({
               }
               error={
                 <div className="rounded-lg border border-red-200 bg-red-50 px-8 py-6 text-red-700">
-                  This PDF could not be opened.
+                  This PDF could
+                  not be opened.
                 </div>
               }
               onLoadSuccess={({
@@ -2812,9 +3722,13 @@ export default function PdfViewer({
                   numPages,
                 );
 
-                setPageNumber(1);
+                setPageNumber(
+                  1,
+                );
               }}
-              onLoadError={(error) => {
+              onLoadError={(
+                error,
+              ) => {
                 console.error(
                   "Unable to load PDF:",
                   error,
@@ -2822,19 +3736,29 @@ export default function PdfViewer({
               }}
             >
               <div
-                ref={pageWrapperRef}
+                ref={
+                  pageWrapperRef
+                }
                 className="relative isolate inline-block overflow-hidden rounded-md bg-white shadow-xl"
               >
                 <Page
-                  pageNumber={pageNumber}
+                  pageNumber={
+                    pageNumber
+                  }
                   scale={
                     pageWidth
                       ? undefined
                       : scale
                   }
-                  width={pageWidth}
-                  renderAnnotationLayer={false}
-                  renderTextLayer={false}
+                  width={
+                    pageWidth
+                  }
+                  renderAnnotationLayer={
+                    false
+                  }
+                  renderTextLayer={
+                    false
+                  }
                 />
 
                 <svg
@@ -2843,8 +3767,12 @@ export default function PdfViewer({
                       ? "pointer-events-auto"
                       : "pointer-events-none"
                   }`}
-                  onMouseDown={(event) => {
-                    if (!interactiveOverlay) {
+                  onMouseDown={(
+                    event,
+                  ) => {
+                    if (
+                      !interactiveOverlay
+                    ) {
                       return;
                     }
 
@@ -2854,13 +3782,19 @@ export default function PdfViewer({
                   onMouseMove={
                     handleOverlayMouseMove
                   }
-                  onClick={handleOverlayClick}
+                  onClick={
+                    handleOverlayClick
+                  }
                 >
                   {currentFloorBoxes.map(
                     (box) => (
                       <AreaBoxOverlay
-                        key={box.id}
-                        box={box}
+                        key={
+                          box.id
+                        }
+                        box={
+                          box
+                        }
                         fillColour={
                           floorColour
                         }
@@ -2882,8 +3816,12 @@ export default function PdfViewer({
                   {currentRoofBoxes.map(
                     (box) => (
                       <AreaBoxOverlay
-                        key={box.id}
-                        box={box}
+                        key={
+                          box.id
+                        }
+                        box={
+                          box
+                        }
                         fillColour={
                           roofColour
                         }
@@ -2903,15 +3841,21 @@ export default function PdfViewer({
                   )}
 
                   {currentMeasurements.map(
-                    (measurement) => {
+                    (
+                      measurement,
+                    ) => {
                       const midpointX =
-                        (measurement.start.x +
-                          measurement.end.x) /
+                        (measurement
+                          .start.x +
+                          measurement
+                            .end.x) /
                         2;
 
                       const midpointY =
-                        (measurement.start.y +
-                          measurement.end.y) /
+                        (measurement
+                          .start.y +
+                          measurement
+                            .end.y) /
                         2;
 
                       return (
@@ -2960,7 +3904,9 @@ export default function PdfViewer({
                                 ? "pointer-events-auto cursor-pointer"
                                 : "pointer-events-none"
                             }
-                            onClick={(event) => {
+                            onClick={(
+                              event,
+                            ) => {
                               event.preventDefault();
                               event.stopPropagation();
 
@@ -3024,7 +3970,9 @@ export default function PdfViewer({
                         start={
                           calibrationStart
                         }
-                        end={calibrationEnd}
+                        end={
+                          calibrationEnd
+                        }
                         colour={
                           calibrationAxis ===
                           "primary"
@@ -3040,7 +3988,9 @@ export default function PdfViewer({
                         start={
                           measurementStart
                         }
-                        end={measurementEnd}
+                        end={
+                          measurementEnd
+                        }
                         colour="#2563eb"
                       />
                     )}
@@ -3071,7 +4021,9 @@ export default function PdfViewer({
                         start={
                           areaLineStart
                         }
-                        end={areaLineEnd}
+                        end={
+                          areaLineEnd
+                        }
                         colour={
                           activeAreaCategory ===
                           "floor"
@@ -3091,7 +4043,8 @@ export default function PdfViewer({
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
             <h2 className="text-lg font-semibold text-slate-900">
-              {calibrationAxis === "primary"
+              {calibrationAxis ===
+              "primary"
                 ? "Enter First Axis Distance"
                 : "Enter Second Axis Distance"}
             </h2>
@@ -3102,23 +4055,35 @@ export default function PdfViewer({
                 min="0"
                 step="any"
                 autoFocus
-                value={distanceInput}
-                onChange={(event) => {
+                value={
+                  distanceInput
+                }
+                onChange={(
+                  event,
+                ) => {
                   setDistanceInput(
-                    event.target.value,
+                    event
+                      .target
+                      .value,
                   );
 
-                  setViewerError("");
+                  setViewerError(
+                    "",
+                  );
                 }}
-                onKeyDown={(event) => {
+                onKeyDown={(
+                  event,
+                ) => {
                   if (
-                    event.key === "Enter"
+                    event.key ===
+                    "Enter"
                   ) {
                     saveCalibrationAxis();
                   }
                 }}
                 placeholder={
-                  distanceUnit === "mm"
+                  distanceUnit ===
+                  "mm"
                     ? "e.g. 6500"
                     : "e.g. 6.5"
                 }
@@ -3126,10 +4091,15 @@ export default function PdfViewer({
               />
 
               <select
-                value={distanceUnit}
-                onChange={(event) =>
+                value={
+                  distanceUnit
+                }
+                onChange={(
+                  event,
+                ) =>
                   setDistanceUnit(
-                    event.target
+                    event
+                      .target
                       .value as CalibrationUnit,
                   )
                 }
@@ -3147,7 +4117,9 @@ export default function PdfViewer({
 
             {viewerError && (
               <p className="mt-3 text-sm font-medium text-red-600">
-                {viewerError}
+                {
+                  viewerError
+                }
               </p>
             )}
 
@@ -3159,13 +4131,22 @@ export default function PdfViewer({
                     false,
                   );
 
-                  setCalibrationEnd(null);
-                  setDistanceInput("");
-                  setViewerError("");
+                  setCalibrationEnd(
+                    null,
+                  );
+
+                  setDistanceInput(
+                    "",
+                  );
+
+                  setViewerError(
+                    "",
+                  );
                 }}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium"
               >
-                Choose Points Again
+                Choose Points
+                Again
               </button>
 
               <button
@@ -3205,17 +4186,27 @@ function AreaBoxOverlay({
 }: AreaBoxOverlayProps) {
   const centreX =
     box.corners.reduce(
-      (total, corner) =>
-        total + corner.x,
+      (
+        total,
+        corner,
+      ) =>
+        total +
+        corner.x,
       0,
-    ) / box.corners.length;
+    ) /
+    box.corners.length;
 
   const centreY =
     box.corners.reduce(
-      (total, corner) =>
-        total + corner.y,
+      (
+        total,
+        corner,
+      ) =>
+        total +
+        corner.y,
       0,
-    ) / box.corners.length;
+    ) /
+    box.corners.length;
 
   return (
     <g>
@@ -3228,28 +4219,47 @@ function AreaBoxOverlay({
       >
         <div
           style={{
-            width: "100%",
-            height: "100%",
+            width:
+              "100%",
+
+            height:
+              "100%",
+
             backgroundColor:
               fillColour,
+
             opacity: 0.5,
 
             clipPath: `polygon(${box.corners
               .map(
-                (corner) =>
-                  `${corner.x * 100}% ${corner.y * 100}%`,
+                (
+                  corner,
+                ) =>
+                  `${
+                    corner.x *
+                    100
+                  }% ${
+                    corner.y *
+                    100
+                  }%`,
               )
-              .join(", ")})`,
+              .join(
+                ", ",
+              )})`,
           }}
         />
       </foreignObject>
 
       {box.corners.map(
-        (corner, index) => {
+        (
+          corner,
+          index,
+        ) => {
           const nextCorner =
             box.corners[
               (index + 1) %
-                box.corners.length
+                box.corners
+                  .length
             ];
 
           return (
@@ -3259,7 +4269,9 @@ function AreaBoxOverlay({
               y1={`${corner.y * 100}%`}
               x2={`${nextCorner.x * 100}%`}
               y2={`${nextCorner.y * 100}%`}
-              stroke={borderColour}
+              stroke={
+                borderColour
+              }
               strokeWidth="6"
               vectorEffect="non-scaling-stroke"
               strokeLinecap="round"
@@ -3271,11 +4283,14 @@ function AreaBoxOverlay({
 
       <g
         className={
-          activeTool === "pan"
+          activeTool ===
+          "pan"
             ? "pointer-events-auto cursor-pointer"
             : "pointer-events-none"
         }
-        onClick={(event) => {
+        onClick={(
+          event,
+        ) => {
           event.preventDefault();
           event.stopPropagation();
 
@@ -3288,7 +4303,9 @@ function AreaBoxOverlay({
           width="100"
           height="30"
           rx="6"
-          fill={borderColour}
+          fill={
+            borderColour
+          }
           transform="translate(-50 -15)"
         />
 
@@ -3301,7 +4318,9 @@ function AreaBoxOverlay({
           fontSize="13"
           fontWeight="600"
         >
-          {formatArea(box.areaM2)}
+          {formatArea(
+            box.areaM2,
+          )}
         </text>
       </g>
     </g>
@@ -3378,7 +4397,9 @@ function PreviewLine({
       stroke={colour}
       strokeWidth="4"
       strokeDasharray={
-        solid ? undefined : "8 5"
+        solid
+          ? undefined
+          : "8 5"
       }
       vectorEffect="non-scaling-stroke"
       pointerEvents="none"
