@@ -4,7 +4,10 @@ import {
     useRef,
     useState,
 } from "react";
-import { useParams } from "react-router-dom";
+import {
+    useNavigate,
+    useParams,
+} from "react-router-dom";
 
 import NewQuoteModal, {
     type NewQuoteFormData,
@@ -59,6 +62,8 @@ function JobDetailPage() {
     const { jobId } = useParams<{
         jobId: string;
     }>();
+
+    const navigate = useNavigate();
 
     const fileInputRef =
         useRef<HTMLInputElement>(null);
@@ -382,6 +387,16 @@ function JobDetailPage() {
         } finally {
             setDeletingFileId(null);
         }
+    }
+
+    function openOverlayMarkup() {
+        if (!jobId) {
+            return;
+        }
+
+        navigate(
+            `/quotes/${jobId}/pdf-editor`,
+        );
     }
 
     function getFileUrl(
@@ -831,19 +846,35 @@ function JobDetailPage() {
                                         </h3>
 
                                         <p className="mt-1 text-sm text-gray-500">
-                                            Upload and open
+                                            Upload, measure
+                                            and mark up
                                             construction plans
                                             for this job.
                                         </p>
                                     </div>
 
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex flex-wrap items-center gap-3">
                                         <span className="text-sm text-gray-500">
                                             {jobDetails.files
                                                 ?.length ??
                                                 0}{" "}
                                             files
                                         </span>
+
+                                        <button
+                                            type="button"
+                                            onClick={
+                                                openOverlayMarkup
+                                            }
+                                            disabled={
+                                                !jobDetails.files ||
+                                                jobDetails.files
+                                                    .length === 0
+                                            }
+                                            className="rounded-lg border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Overlay Markup
+                                        </button>
 
                                         <button
                                             type="button"

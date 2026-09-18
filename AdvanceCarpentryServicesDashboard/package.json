@@ -14,9 +14,12 @@
     "@untitledui/icons": "^0.0.22",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "jspdf": "^4.2.1",
+    "konva": "^10.5.0",
     "multer": "^2.2.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-konva": "^19.2.7",
     "react-pdf": "^10.4.1",
     "react-router-dom": "^7.15.1"
   },
