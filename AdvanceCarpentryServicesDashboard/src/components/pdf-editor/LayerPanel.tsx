@@ -415,6 +415,53 @@ export default function LayerPanel({
                 className="mt-2 w-full"
               />
             </div>
+
+            <div>
+              <label className="text-xs font-medium text-slate-600">
+                Arrow ends
+              </label>
+
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateMarkupStyle({
+                      dimensionStartArrow:
+                        !markupStyle.dimensionStartArrow,
+                    })
+                  }
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold ${
+                    markupStyle.dimensionStartArrow
+                      ? "bg-slate-800 text-white"
+                      : "border border-slate-300 text-slate-700"
+                  }`}
+                >
+                  Start
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateMarkupStyle({
+                      dimensionEndArrow: !markupStyle.dimensionEndArrow,
+                    })
+                  }
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold ${
+                    markupStyle.dimensionEndArrow
+                      ? "bg-slate-800 text-white"
+                      : "border border-slate-300 text-slate-700"
+                  }`}
+                >
+                  End
+                </button>
+              </div>
+
+              <p className="mt-2 text-[11px] text-slate-500">
+                Off draws a plain tick at that end; on draws an arrowhead.
+                Both on gives a two-directional arrow. Applies to new
+                dimensions.
+              </p>
+            </div>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">

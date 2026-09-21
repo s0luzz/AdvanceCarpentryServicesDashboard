@@ -86,6 +86,26 @@ function drawShape(
   context.restore();
 }
 
+function drawArrowHead(
+  context: CanvasRenderingContext2D,
+  tip: { x: number; y: number },
+  angle: number,
+  length: number,
+) {
+  context.beginPath();
+  context.moveTo(tip.x, tip.y);
+  context.lineTo(
+    tip.x - length * Math.cos(angle - Math.PI / 7),
+    tip.y - length * Math.sin(angle - Math.PI / 7),
+  );
+  context.lineTo(
+    tip.x - length * Math.cos(angle + Math.PI / 7),
+    tip.y - length * Math.sin(angle + Math.PI / 7),
+  );
+  context.closePath();
+  context.fill();
+}
+
 function drawDimension(
   context: CanvasRenderingContext2D,
   dimension: DimensionMarkup,
@@ -96,11 +116,14 @@ function drawDimension(
   const length = Math.max(Math.hypot(dx, dy), 1);
   const normalX = -dy / length;
   const normalY = dx / length;
+  const angle = Math.atan2(dy, dx);
   const tickHalf = 9 * exportScale;
+  const headLength = 14 * exportScale;
   const lineWidth = Math.max(dimension.lineWidth * exportScale, 1);
 
   context.save();
   context.strokeStyle = dimension.lineColor;
+  context.fillStyle = dimension.lineColor;
   context.lineWidth = lineWidth;
   context.lineCap = "round";
 
@@ -109,54 +132,57 @@ function drawDimension(
   context.lineTo(dimension.end.x, dimension.end.y);
   context.stroke();
 
-  context.beginPath();
-  context.moveTo(
-    dimension.start.x - normalX * tickHalf,
-    dimension.start.y - normalY * tickHalf,
-  );
-  context.lineTo(
-    dimension.start.x + normalX * tickHalf,
-    dimension.start.y + normalY * tickHalf,
-  );
-  context.stroke();
+  if (dimension.startArrow) {
+    drawArrowHead(context, dimension.start, angle + Math.PI, headLength);
+  } else {
+    context.beginPath();
+    context.moveTo(
+      dimension.start.x - normalX * tickHalf,
+      dimension.start.y - normalY * tickHalf,
+    );
+    context.lineTo(
+      dimension.start.x + normalX * tickHalf,
+      dimension.start.y + normalY * tickHalf,
+    );
+    context.stroke();
+  }
 
-  context.beginPath();
-  context.moveTo(
-    dimension.end.x - normalX * tickHalf,
-    dimension.end.y - normalY * tickHalf,
-  );
-  context.lineTo(
-    dimension.end.x + normalX * tickHalf,
-    dimension.end.y + normalY * tickHalf,
-  );
-  context.stroke();
+  if (dimension.endArrow) {
+    drawArrowHead(context, dimension.end, angle, headLength);
+  } else {
+    context.beginPath();
+    context.moveTo(
+      dimension.end.x - normalX * tickHalf,
+      dimension.end.y - normalY * tickHalf,
+    );
+    context.lineTo(
+      dimension.end.x + normalX * tickHalf,
+      dimension.end.y + normalY * tickHalf,
+    );
+    context.stroke();
+  }
 
   const midpointX = (dimension.start.x + dimension.end.x) / 2;
   const midpointY = (dimension.start.y + dimension.end.y) / 2;
   const fontSize = 15 * exportScale;
-  const horizontalPadding = 9 * exportScale;
-  const verticalPadding = 6 * exportScale;
+  const labelGap = fontSize / 2 + lineWidth / 2 + 4 * exportScale;
+
+  // Keep the label readable (never upside-down) by folding the angle into (-90, 90].
+  let labelAngle = Math.atan2(dy, dx);
+  if (labelAngle > Math.PI / 2) labelAngle -= Math.PI;
+  if (labelAngle < -Math.PI / 2) labelAngle += Math.PI;
+
+  context.translate(
+    midpointX - normalX * labelGap,
+    midpointY - normalY * labelGap,
+  );
+  context.rotate(labelAngle);
 
   context.font = `700 ${fontSize}px Arial, sans-serif`;
-  const measuredText = context.measureText(dimension.displayText);
-  const labelWidth = Math.max(
-    measuredText.width + horizontalPadding * 2,
-    38 * exportScale,
-  );
-  const labelHeight = fontSize + verticalPadding * 2;
-  const labelX = midpointX - labelWidth / 2;
-  const labelY = midpointY - labelHeight / 2;
-  const radius = 5 * exportScale;
-
-  context.fillStyle = dimension.lineColor;
-  context.beginPath();
-  context.roundRect(labelX, labelY, labelWidth, labelHeight, radius);
-  context.fill();
-
   context.fillStyle = dimension.textColor;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.fillText(dimension.displayText, midpointX, midpointY);
+  context.fillText(dimension.displayText, 0, 0);
   context.restore();
 }
 

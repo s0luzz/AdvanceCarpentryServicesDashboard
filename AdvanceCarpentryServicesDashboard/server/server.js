@@ -691,6 +691,16 @@ app.patch(
                               .takeoff ??
                           null,
 
+                markupEditor:
+                    req.body
+                        .markupEditor !==
+                    undefined
+                        ? req.body
+                              .markupEditor
+                        : existingQuote
+                              .markupEditor ??
+                          null,
+
                 files:
                     existingQuote.files ??
                     [],

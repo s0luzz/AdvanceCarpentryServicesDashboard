@@ -3,8 +3,9 @@ import {
   useRef,
   useState,
 } from "react";
-import type Konva from "konva";
+import Konva from "konva";
 import {
+  Arrow,
   Circle,
   Ellipse,
   Group,
@@ -54,6 +55,19 @@ type PdfEditorCanvasProps = {
   ) => void;
   onShapeComplete: (
     type: ShapeType,
+    start: Point,
+    end: Point,
+  ) => void;
+  onDeleteDimension: (id: string) => void;
+  onDeleteShape: (id: string) => void;
+  onEditDimensionText: (id: string) => void;
+  onUpdateDimensionPoints: (
+    id: string,
+    start: Point,
+    end: Point,
+  ) => void;
+  onUpdateShapePoints: (
+    id: string,
     start: Point,
     end: Point,
   ) => void;
@@ -182,9 +196,15 @@ export default function PdfEditorCanvas({
   onCalibrationLineComplete,
   onDimensionLineComplete,
   onShapeComplete,
+  onDeleteDimension,
+  onDeleteShape,
+  onEditDimensionText,
+  onUpdateDimensionPoints,
+  onUpdateShapePoints,
 }: PdfEditorCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
+  const baseImageRef = useRef<Konva.Image>(null);
   const overlayImageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
 
@@ -197,6 +217,18 @@ export default function PdfEditorCanvas({
   const [viewPosition, setViewPosition] = useState({ x: 0, y: 0 });
   const [drawStart, setDrawStart] = useState<Point | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
+  const [baseGrayscale, setBaseGrayscale] = useState(false);
+
+  useEffect(() => {
+    const node = baseImageRef.current;
+
+    if (!node) {
+      return;
+    }
+
+    node.cache();
+    node.getLayer()?.batchDraw();
+  }, [baseGrayscale, basePage]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -291,6 +323,18 @@ export default function PdfEditorCanvas({
     setViewPosition({
       x: (viewportSize.width - basePage.width * nextScale) / 2,
       y: (viewportSize.height - basePage.height * nextScale) / 2,
+    });
+  }
+
+  function viewAtActualSize() {
+    if (!basePage) {
+      return;
+    }
+
+    setViewScale(1);
+    setViewPosition({
+      x: (viewportSize.width - basePage.width) / 2,
+      y: (viewportSize.height - basePage.height) / 2,
     });
   }
 
@@ -550,6 +594,30 @@ export default function PdfEditorCanvas({
         >
           Fit
         </button>
+
+        <button
+          type="button"
+          onClick={viewAtActualSize}
+          disabled={!basePage}
+          title="Reset to the file's original scale, then zoom in to crop in further"
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+        >
+          100%
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setBaseGrayscale((current) => !current)}
+          disabled={!basePage}
+          title="Toggle black & white base plan"
+          className={`rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
+            baseGrayscale
+              ? "border-slate-700 bg-slate-800 text-white"
+              : "border-slate-300 text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          B&amp;W
+        </button>
       </div>
 
       <Stage
@@ -576,12 +644,14 @@ export default function PdfEditorCanvas({
         <Layer listening={tool !== "pan"}>
           {basePage && (
             <KonvaImage
+              ref={baseImageRef}
               image={basePage.image}
               x={0}
               y={0}
               width={basePage.width}
               height={basePage.height}
               listening={false}
+              filters={baseGrayscale ? [Konva.Filters.Grayscale] : []}
             />
           )}
         </Layer>
@@ -652,18 +722,22 @@ export default function PdfEditorCanvas({
           />
         </Layer>
 
-        <Layer listening={false}>
+        <Layer listening={tool === "delete" || tool === "edit"}>
           {shapes.map((shape) => (
             <ShapeOverlay
               key={shape.id}
               shape={shape}
               viewScale={viewScale}
+              tool={tool}
+              onDelete={onDeleteShape}
+              onUpdatePoints={onUpdateShapePoints}
             />
           ))}
 
           {calibration && (
             <>
               <Line
+                listening={false}
                 points={[
                   calibration.start.x,
                   calibration.start.y,
@@ -675,12 +749,14 @@ export default function PdfEditorCanvas({
                 dash={[10 / viewScale, 7 / viewScale]}
               />
               <Circle
+                listening={false}
                 x={calibration.start.x}
                 y={calibration.start.y}
                 radius={5 / viewScale}
                 fill="#f59e0b"
               />
               <Circle
+                listening={false}
                 x={calibration.end.x}
                 y={calibration.end.y}
                 radius={5 / viewScale}
@@ -694,11 +770,16 @@ export default function PdfEditorCanvas({
               key={dimension.id}
               dimension={dimension}
               viewScale={viewScale}
+              tool={tool}
+              onDelete={onDeleteDimension}
+              onEditText={onEditDimensionText}
+              onUpdatePoints={onUpdateDimensionPoints}
             />
           ))}
 
           {drawStart && hoverPoint && tool === "calibrate" && (
             <Line
+              listening={false}
               points={[
                 drawStart.x,
                 drawStart.y,
@@ -712,7 +793,8 @@ export default function PdfEditorCanvas({
           )}
 
           {drawStart && hoverPoint && tool === "dimension" && (
-            <Line
+            <Arrow
+              listening={false}
               points={[
                 drawStart.x,
                 drawStart.y,
@@ -720,7 +802,12 @@ export default function PdfEditorCanvas({
                 hoverPoint.y,
               ]}
               stroke={markupStyle.dimensionLineColor}
+              fill={markupStyle.dimensionLineColor}
               strokeWidth={markupStyle.dimensionLineWidth / viewScale}
+              pointerAtBeginning={markupStyle.dimensionStartArrow}
+              pointerAtEnding={markupStyle.dimensionEndArrow}
+              pointerLength={12 / viewScale}
+              pointerWidth={10 / viewScale}
               dash={[10 / viewScale, 7 / viewScale]}
             />
           )}
@@ -779,16 +866,36 @@ export default function PdfEditorCanvas({
 type ShapeOverlayProps = {
   shape: ShapeMarkup;
   viewScale: number;
+  tool: EditorTool;
+  onDelete: (id: string) => void;
+  onUpdatePoints: (id: string, start: Point, end: Point) => void;
 };
 
-function ShapeOverlay({ shape, viewScale }: ShapeOverlayProps) {
+function ShapeOverlay({
+  shape,
+  viewScale,
+  tool,
+  onDelete,
+  onUpdatePoints,
+}: ShapeOverlayProps) {
   const x = Math.min(shape.start.x, shape.end.x);
   const y = Math.min(shape.start.y, shape.end.y);
   const width = Math.abs(shape.end.x - shape.start.x);
   const height = Math.abs(shape.end.y - shape.start.y);
+  const interactive = tool === "delete" || tool === "edit";
+  const handleRadius = 6 / viewScale;
 
-  if (shape.type === "ellipse") {
-    return (
+  function handleClick(event: Konva.KonvaEventObject<Event>) {
+    if (tool !== "delete") {
+      return;
+    }
+
+    event.cancelBubble = true;
+    onDelete(shape.id);
+  }
+
+  const shapeNode =
+    shape.type === "ellipse" ? (
       <Ellipse
         x={x + width / 2}
         y={y + height / 2}
@@ -798,21 +905,76 @@ function ShapeOverlay({ shape, viewScale }: ShapeOverlayProps) {
         stroke={shape.strokeColor}
         strokeWidth={shape.strokeWidth / viewScale}
         opacity={shape.opacity}
+        listening={interactive}
+        onClick={handleClick}
+        onTap={handleClick}
+      />
+    ) : (
+      <Rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={shape.fillColor}
+        stroke={shape.strokeColor}
+        strokeWidth={shape.strokeWidth / viewScale}
+        opacity={shape.opacity}
+        listening={interactive}
+        onClick={handleClick}
+        onTap={handleClick}
       />
     );
-  }
 
   return (
-    <Rect
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      fill={shape.fillColor}
-      stroke={shape.strokeColor}
-      strokeWidth={shape.strokeWidth / viewScale}
-      opacity={shape.opacity}
-    />
+    <Group>
+      {shapeNode}
+
+      {tool === "edit" && (
+        <>
+          <Circle
+            x={shape.start.x}
+            y={shape.start.y}
+            radius={handleRadius}
+            fill="#ffffff"
+            stroke={shape.strokeColor}
+            strokeWidth={2 / viewScale}
+            draggable
+            onDragMove={(event) => {
+              event.cancelBubble = true;
+            }}
+            onDragEnd={(event) => {
+              event.cancelBubble = true;
+              onUpdatePoints(
+                shape.id,
+                { x: event.target.x(), y: event.target.y() },
+                shape.end,
+              );
+            }}
+          />
+
+          <Circle
+            x={shape.end.x}
+            y={shape.end.y}
+            radius={handleRadius}
+            fill="#ffffff"
+            stroke={shape.strokeColor}
+            strokeWidth={2 / viewScale}
+            draggable
+            onDragMove={(event) => {
+              event.cancelBubble = true;
+            }}
+            onDragEnd={(event) => {
+              event.cancelBubble = true;
+              onUpdatePoints(
+                shape.id,
+                shape.start,
+                { x: event.target.x(), y: event.target.y() },
+              );
+            }}
+          />
+        </>
+      )}
+    </Group>
   );
 }
 
@@ -840,6 +1002,7 @@ function ShapePreview({
   if (tool === "shape-ellipse") {
     return (
       <Ellipse
+        listening={false}
         x={x + width / 2}
         y={y + height / 2}
         radiusX={width / 2}
@@ -855,6 +1018,7 @@ function ShapePreview({
 
   return (
     <Rect
+      listening={false}
       x={x}
       y={y}
       width={width}
@@ -871,11 +1035,19 @@ function ShapePreview({
 type DimensionLineProps = {
   dimension: DimensionMarkup;
   viewScale: number;
+  tool: EditorTool;
+  onDelete: (id: string) => void;
+  onEditText: (id: string) => void;
+  onUpdatePoints: (id: string, start: Point, end: Point) => void;
 };
 
 function DimensionLine({
   dimension,
   viewScale,
+  tool,
+  onDelete,
+  onEditText,
+  onUpdatePoints,
 }: DimensionLineProps) {
   const dx = dimension.end.x - dimension.start.x;
   const dy = dimension.end.y - dimension.start.y;
@@ -885,6 +1057,11 @@ function DimensionLine({
     y: dx / length,
   };
 
+  // Keep the label readable (never upside-down) by folding the angle into (-90, 90].
+  let labelAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  if (labelAngle > 90) labelAngle -= 180;
+  if (labelAngle < -90) labelAngle += 180;
+
   const tickHalf = 9 / viewScale;
   const midpoint = {
     x: (dimension.start.x + dimension.end.x) / 2,
@@ -892,20 +1069,51 @@ function DimensionLine({
   };
 
   const fontSize = 14 / viewScale;
-  const horizontalPadding = 8 / viewScale;
-  const verticalPadding = 5 / viewScale;
-  const estimatedTextWidth =
-    dimension.displayText.length * fontSize * 0.62;
   const labelWidth = Math.max(
-    estimatedTextWidth + horizontalPadding * 2,
+    dimension.displayText.length * fontSize * 0.62,
     36 / viewScale,
   );
-  const labelHeight = fontSize + verticalPadding * 2;
   const lineWidth = dimension.lineWidth / viewScale;
+  const labelGap = fontSize / 2 + lineWidth / 2 + 4 / viewScale;
+  const labelCenter = {
+    x: midpoint.x - normal.x * labelGap,
+    y: midpoint.y - normal.y * labelGap,
+  };
+  const interactive = tool === "delete" || tool === "edit";
+  const hitStrokeWidth = Math.max(lineWidth * 3, 14 / viewScale);
+  const handleRadius = 6 / viewScale;
+
+  function handleBodyClick(event: Konva.KonvaEventObject<Event>) {
+    event.cancelBubble = true;
+
+    if (tool === "delete") {
+      onDelete(dimension.id);
+    } else if (tool === "edit") {
+      onEditText(dimension.id);
+    }
+  }
 
   return (
     <Group>
-      <Line
+      {interactive && (
+        <Line
+          points={[
+            dimension.start.x,
+            dimension.start.y,
+            dimension.end.x,
+            dimension.end.y,
+          ]}
+          stroke="#000000"
+          opacity={0}
+          strokeWidth={hitStrokeWidth}
+          hitStrokeWidth={hitStrokeWidth}
+          onClick={handleBodyClick}
+          onTap={handleBodyClick}
+        />
+      )}
+
+      <Arrow
+        listening={false}
         points={[
           dimension.start.x,
           dimension.start.y,
@@ -913,50 +1121,101 @@ function DimensionLine({
           dimension.end.y,
         ]}
         stroke={dimension.lineColor}
-        strokeWidth={lineWidth}
-      />
-
-      <Line
-        points={[
-          dimension.start.x - normal.x * tickHalf,
-          dimension.start.y - normal.y * tickHalf,
-          dimension.start.x + normal.x * tickHalf,
-          dimension.start.y + normal.y * tickHalf,
-        ]}
-        stroke={dimension.lineColor}
-        strokeWidth={lineWidth}
-      />
-
-      <Line
-        points={[
-          dimension.end.x - normal.x * tickHalf,
-          dimension.end.y - normal.y * tickHalf,
-          dimension.end.x + normal.x * tickHalf,
-          dimension.end.y + normal.y * tickHalf,
-        ]}
-        stroke={dimension.lineColor}
-        strokeWidth={lineWidth}
-      />
-
-      <Rect
-        x={midpoint.x - labelWidth / 2}
-        y={midpoint.y - labelHeight / 2}
-        width={labelWidth}
-        height={labelHeight}
-        cornerRadius={5 / viewScale}
         fill={dimension.lineColor}
+        strokeWidth={lineWidth}
+        pointerAtBeginning={dimension.startArrow}
+        pointerAtEnding={dimension.endArrow}
+        pointerLength={12 / viewScale}
+        pointerWidth={10 / viewScale}
       />
 
-      <Text
-        x={midpoint.x - labelWidth / 2}
-        y={midpoint.y - fontSize / 2}
-        width={labelWidth}
-        text={dimension.displayText}
-        align="center"
-        fontSize={fontSize}
-        fontStyle="bold"
-        fill={dimension.textColor}
-      />
+      {!dimension.startArrow && (
+        <Line
+          listening={false}
+          points={[
+            dimension.start.x - normal.x * tickHalf,
+            dimension.start.y - normal.y * tickHalf,
+            dimension.start.x + normal.x * tickHalf,
+            dimension.start.y + normal.y * tickHalf,
+          ]}
+          stroke={dimension.lineColor}
+          strokeWidth={lineWidth}
+        />
+      )}
+
+      {!dimension.endArrow && (
+        <Line
+          listening={false}
+          points={[
+            dimension.end.x - normal.x * tickHalf,
+            dimension.end.y - normal.y * tickHalf,
+            dimension.end.x + normal.x * tickHalf,
+            dimension.end.y + normal.y * tickHalf,
+          ]}
+          stroke={dimension.lineColor}
+          strokeWidth={lineWidth}
+        />
+      )}
+
+      <Group x={labelCenter.x} y={labelCenter.y} rotation={labelAngle}>
+        <Text
+          listening={false}
+          x={-labelWidth / 2}
+          y={-fontSize / 2}
+          width={labelWidth}
+          text={dimension.displayText}
+          align="center"
+          fontSize={fontSize}
+          fontStyle="bold"
+          fill={dimension.textColor}
+        />
+      </Group>
+
+      {tool === "edit" && (
+        <>
+          <Circle
+            x={dimension.start.x}
+            y={dimension.start.y}
+            radius={handleRadius}
+            fill="#ffffff"
+            stroke={dimension.lineColor}
+            strokeWidth={2 / viewScale}
+            draggable
+            onDragMove={(event) => {
+              event.cancelBubble = true;
+            }}
+            onDragEnd={(event) => {
+              event.cancelBubble = true;
+              onUpdatePoints(
+                dimension.id,
+                { x: event.target.x(), y: event.target.y() },
+                dimension.end,
+              );
+            }}
+          />
+
+          <Circle
+            x={dimension.end.x}
+            y={dimension.end.y}
+            radius={handleRadius}
+            fill="#ffffff"
+            stroke={dimension.lineColor}
+            strokeWidth={2 / viewScale}
+            draggable
+            onDragMove={(event) => {
+              event.cancelBubble = true;
+            }}
+            onDragEnd={(event) => {
+              event.cancelBubble = true;
+              onUpdatePoints(
+                dimension.id,
+                dimension.start,
+                { x: event.target.x(), y: event.target.y() },
+              );
+            }}
+          />
+        </>
+      )}
     </Group>
   );
 }
@@ -980,6 +1239,7 @@ function AlignmentMarker({
   return (
     <Group>
       <Circle
+        listening={false}
         x={point.x}
         y={point.y}
         radius={radius}
@@ -989,6 +1249,7 @@ function AlignmentMarker({
       />
 
       <Text
+        listening={false}
         x={point.x + 10 / viewScale}
         y={point.y - 7 / viewScale}
         text={label}

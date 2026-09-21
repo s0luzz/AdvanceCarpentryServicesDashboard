@@ -64,9 +64,11 @@ type PendingCalibration = {
 };
 
 type PendingDimension = {
+  id?: string;
   start: { x: number; y: number };
   end: { x: number; y: number };
   measuredMm: number;
+  initialText?: string;
 };
 
 function createId() {
@@ -124,6 +126,14 @@ function normaliseDimension(value: unknown): DimensionMarkup | null {
       (dimension.lineWidth as number) > 0
         ? (dimension.lineWidth as number)
         : DEFAULT_MARKUP_STYLE.dimensionLineWidth,
+    startArrow:
+      typeof dimension.startArrow === "boolean"
+        ? dimension.startArrow
+        : DEFAULT_MARKUP_STYLE.dimensionStartArrow,
+    endArrow:
+      typeof dimension.endArrow === "boolean"
+        ? dimension.endArrow
+        : DEFAULT_MARKUP_STYLE.dimensionEndArrow,
   };
 }
 
@@ -701,6 +711,70 @@ export default function PdfEditorPage() {
     setShapes((current) => current.slice(0, -1));
   }
 
+  function deleteDimension(id: string) {
+    setDimensions((current) => current.filter((item) => item.id !== id));
+  }
+
+  function deleteShape(id: string) {
+    setShapes((current) => current.filter((item) => item.id !== id));
+  }
+
+  function updateDimensionPoints(
+    id: string,
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+  ) {
+    setDimensions((current) =>
+      current.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        const pixelDistance = Math.hypot(
+          end.x - start.x,
+          end.y - start.y,
+        );
+
+        return {
+          ...item,
+          start,
+          end,
+          measuredMm: calibration
+            ? pixelDistance * calibration.mmPerPixel
+            : item.measuredMm,
+        };
+      }),
+    );
+  }
+
+  function updateShapePoints(
+    id: string,
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+  ) {
+    setShapes((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, start, end } : item,
+      ),
+    );
+  }
+
+  function startEditDimensionText(id: string) {
+    const dimension = dimensions.find((item) => item.id === id);
+
+    if (!dimension) {
+      return;
+    }
+
+    setPendingDimension({
+      id: dimension.id,
+      start: dimension.start,
+      end: dimension.end,
+      measuredMm: dimension.measuredMm,
+      initialText: dimension.displayText,
+    });
+  }
+
   async function handleExportPdf() {
     if (!basePage) {
       return;
@@ -814,6 +888,18 @@ export default function PdfEditorPage() {
       label: "Ellipse",
       disabled: !basePage,
       activeClass: "bg-rose-600 text-white",
+    },
+    {
+      id: "edit",
+      label: "Edit",
+      disabled: !basePage,
+      activeClass: "bg-indigo-600 text-white",
+    },
+    {
+      id: "delete",
+      label: "Delete",
+      disabled: !basePage,
+      activeClass: "bg-red-600 text-white",
     },
   ];
 
@@ -972,6 +1058,11 @@ export default function PdfEditorPage() {
               });
             }}
             onShapeComplete={addShape}
+            onDeleteDimension={deleteDimension}
+            onDeleteShape={deleteShape}
+            onEditDimensionText={startEditDimensionText}
+            onUpdateDimensionPoints={updateDimensionPoints}
+            onUpdateShapePoints={updateShapePoints}
           />
         </section>
 
@@ -1041,25 +1132,40 @@ export default function PdfEditorPage() {
       <DimensionDialog
         open={Boolean(pendingDimension)}
         measuredMm={pendingDimension?.measuredMm ?? 0}
+        initialText={pendingDimension?.initialText}
+        title={pendingDimension?.id ? "Edit Dimension" : "Add Dimension"}
+        confirmLabel={pendingDimension?.id ? "Save" : "Add Dimension"}
         onCancel={() => setPendingDimension(null)}
         onSave={(displayText) => {
           if (!pendingDimension) {
             return;
           }
 
-          setDimensions((current) => [
-            ...current,
-            {
-              id: createId(),
-              start: pendingDimension.start,
-              end: pendingDimension.end,
-              measuredMm: pendingDimension.measuredMm,
-              displayText,
-              lineColor: markupStyle.dimensionLineColor,
-              textColor: markupStyle.dimensionTextColor,
-              lineWidth: markupStyle.dimensionLineWidth,
-            },
-          ]);
+          if (pendingDimension.id) {
+            const editId = pendingDimension.id;
+
+            setDimensions((current) =>
+              current.map((item) =>
+                item.id === editId ? { ...item, displayText } : item,
+              ),
+            );
+          } else {
+            setDimensions((current) => [
+              ...current,
+              {
+                id: createId(),
+                start: pendingDimension.start,
+                end: pendingDimension.end,
+                measuredMm: pendingDimension.measuredMm,
+                displayText,
+                lineColor: markupStyle.dimensionLineColor,
+                textColor: markupStyle.dimensionTextColor,
+                lineWidth: markupStyle.dimensionLineWidth,
+                startArrow: markupStyle.dimensionStartArrow,
+                endArrow: markupStyle.dimensionEndArrow,
+              },
+            ]);
+          }
 
           setPendingDimension(null);
         }}

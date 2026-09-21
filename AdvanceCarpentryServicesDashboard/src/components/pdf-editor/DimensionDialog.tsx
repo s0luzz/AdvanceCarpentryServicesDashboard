@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 type DimensionDialogProps = {
   open: boolean;
   measuredMm: number;
+  initialText?: string;
+  title?: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onSave: (displayText: string) => void;
 };
@@ -18,6 +21,9 @@ function formatMeasuredDistance(distanceMm: number) {
 export default function DimensionDialog({
   open,
   measuredMm,
+  initialText,
+  title = "Add Dimension",
+  confirmLabel = "Add Dimension",
   onCancel,
   onSave,
 }: DimensionDialogProps) {
@@ -25,9 +31,9 @@ export default function DimensionDialog({
 
   useEffect(() => {
     if (open) {
-      setDisplayText(String(Math.round(measuredMm)));
+      setDisplayText(initialText ?? String(Math.round(measuredMm)));
     }
-  }, [open, measuredMm]);
+  }, [open, measuredMm, initialText]);
 
   if (!open) {
     return null;
@@ -39,7 +45,7 @@ export default function DimensionDialog({
     <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <h2 className="text-lg font-semibold text-slate-900">
-          Add Dimension
+          {title}
         </h2>
 
         <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
@@ -90,7 +96,7 @@ export default function DimensionDialog({
             onClick={() => onSave(displayText.trim())}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Add Dimension
+            {confirmLabel}
           </button>
         </div>
       </div>

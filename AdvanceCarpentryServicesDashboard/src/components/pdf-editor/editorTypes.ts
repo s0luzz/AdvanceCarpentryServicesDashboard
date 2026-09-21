@@ -10,7 +10,9 @@ export type EditorTool =
   | "calibrate"
   | "dimension"
   | "shape-rectangle"
-  | "shape-ellipse";
+  | "shape-ellipse"
+  | "edit"
+  | "delete";
 
 export type PdfPageSelection = {
   fileId: string;
@@ -45,6 +47,8 @@ export type MarkupStyle = {
   dimensionLineColor: string;
   dimensionTextColor: string;
   dimensionLineWidth: number;
+  dimensionStartArrow: boolean;
+  dimensionEndArrow: boolean;
   shapeFillColor: string;
   shapeOpacity: number;
   shapeStrokeColor: string;
@@ -60,6 +64,8 @@ export type DimensionMarkup = {
   lineColor: string;
   textColor: string;
   lineWidth: number;
+  startArrow: boolean;
+  endArrow: boolean;
 };
 
 export type ShapeType = "rectangle" | "ellipse";
@@ -111,8 +117,10 @@ export const DEFAULT_OVERLAY_TRANSFORM: OverlayTransform = {
 
 export const DEFAULT_MARKUP_STYLE: MarkupStyle = {
   dimensionLineColor: "#2563eb",
-  dimensionTextColor: "#ffffff",
+  dimensionTextColor: "#2563eb",
   dimensionLineWidth: 2.5,
+  dimensionStartArrow: false,
+  dimensionEndArrow: false,
   shapeFillColor: "#ef4444",
   shapeOpacity: 0.3,
   shapeStrokeColor: "#b91c1c",
