@@ -13,6 +13,9 @@ type ExportMarkupPdfOptions = {
   overlayTransform: OverlayTransform;
   dimensions: DimensionMarkup[];
   shapes: ShapeMarkup[];
+  labelScale: number;
+  labelOpacity: number;
+  baseGrayscale?: boolean;
 };
 
 function drawOverlay(
@@ -110,6 +113,8 @@ function drawDimension(
   context: CanvasRenderingContext2D,
   dimension: DimensionMarkup,
   exportScale: number,
+  labelScale: number,
+  labelOpacity: number,
 ) {
   const dx = dimension.end.x - dimension.start.x;
   const dy = dimension.end.y - dimension.start.y;
@@ -164,7 +169,7 @@ function drawDimension(
 
   const midpointX = (dimension.start.x + dimension.end.x) / 2;
   const midpointY = (dimension.start.y + dimension.end.y) / 2;
-  const fontSize = 15 * exportScale;
+  const fontSize = 15 * labelScale * exportScale;
   const labelGap = fontSize / 2 + lineWidth / 2 + 4 * exportScale;
 
   // Keep the label readable (never upside-down) by folding the angle into (-90, 90].
@@ -173,16 +178,86 @@ function drawDimension(
   if (labelAngle < -Math.PI / 2) labelAngle += Math.PI;
 
   context.translate(
-    midpointX - normalX * labelGap,
-    midpointY - normalY * labelGap,
+    midpointX - normalX * labelGap + (dimension.labelOffset?.x ?? 0),
+    midpointY - normalY * labelGap + (dimension.labelOffset?.y ?? 0),
   );
   context.rotate(labelAngle);
 
   context.font = `700 ${fontSize}px Arial, sans-serif`;
-  context.fillStyle = dimension.textColor;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.fillText(dimension.displayText, 0, 0);
+
+  const segmentPaddingX = 8 * labelScale * exportScale;
+  const segmentPaddingY = 5 * labelScale * exportScale;
+  const segmentGap = 5 * labelScale * exportScale;
+  const segmentHeight = fontSize + segmentPaddingY * 2;
+  const cornerRadius = 4 * exportScale;
+
+  const hasLabel = dimension.label.trim().length > 0;
+  const labelWidth = hasLabel
+    ? context.measureText(dimension.label).width +
+      segmentPaddingX * 2
+    : 0;
+
+  const measurementWidth = Math.max(
+    context.measureText(dimension.displayText).width +
+      segmentPaddingX * 2,
+    38 * labelScale * exportScale,
+  );
+
+  const totalWidth =
+    labelWidth +
+    (hasLabel ? segmentGap : 0) +
+    measurementWidth;
+
+  const leftEdge = -totalWidth / 2;
+
+  if (hasLabel) {
+    context.globalAlpha = labelOpacity;
+    context.fillStyle = "#ffffff";
+    context.beginPath();
+    context.roundRect(
+      leftEdge,
+      -segmentHeight / 2,
+      labelWidth,
+      segmentHeight,
+      cornerRadius,
+    );
+    context.fill();
+    context.globalAlpha = 1;
+
+    context.fillStyle = "#111827";
+    context.fillText(
+      dimension.label,
+      leftEdge + labelWidth / 2,
+      0,
+    );
+  }
+
+  const measurementX =
+    leftEdge +
+    (hasLabel ? labelWidth + segmentGap : 0);
+
+  context.globalAlpha = labelOpacity;
+  context.fillStyle = "#fde047";
+  context.beginPath();
+  context.roundRect(
+    measurementX,
+    -segmentHeight / 2,
+    measurementWidth,
+    segmentHeight,
+    cornerRadius,
+  );
+  context.fill();
+  context.globalAlpha = 1;
+
+  context.fillStyle = dimension.textColor;
+  context.fillText(
+    dimension.displayText,
+    measurementX + measurementWidth / 2,
+    0,
+  );
+
   context.restore();
 }
 
@@ -202,6 +277,9 @@ export async function exportMarkupPdf({
   overlayTransform,
   dimensions,
   shapes,
+  labelScale,
+  labelOpacity,
+  baseGrayscale,
 }: ExportMarkupPdfOptions) {
   const canvas = document.createElement("canvas");
   canvas.width = basePage.width;
@@ -215,7 +293,9 @@ export async function exportMarkupPdf({
 
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
+  if (baseGrayscale) context.filter = "grayscale(1)";
   context.drawImage(basePage.image, 0, 0, basePage.width, basePage.height);
+  context.filter = "none";
 
   if (overlayPage) {
     drawOverlay(context, overlayPage, overlayTransform);
@@ -228,7 +308,7 @@ export async function exportMarkupPdf({
   });
 
   dimensions.forEach((dimension) => {
-    drawDimension(context, dimension, exportScale);
+    drawDimension(context, dimension, exportScale, labelScale, labelOpacity);
   });
 
   const imageData = canvas.toDataURL("image/png", 1);

@@ -8,6 +8,7 @@ import JobDetailPage from "./pages/JobDetailPage";
 import SchedulePage from "./pages/SchedulePage";
 import PdfViewerPage from "./pages/PdfViewerPage";
 import PdfEditorPage from "./pages/PdfEditorPage";
+import InvoicesPage from "./pages/InvoicesPage";
 
 function App() {
     return (
@@ -25,6 +26,7 @@ function App() {
                     <Route path="/quotes" element={<QuotesPage />} />
                     <Route path="/jobs/:jobId" element={<JobDetailPage />} />
                     <Route path="/schedule" element={<SchedulePage />} />
+                    <Route path="/invoices" element={<InvoicesPage />} />
                     <Route path="/quotes/:jobId/pdf-editor" element={<PdfEditorPage />}/>
                 </Routes>
             </main>

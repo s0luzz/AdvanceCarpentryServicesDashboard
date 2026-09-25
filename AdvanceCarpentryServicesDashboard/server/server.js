@@ -129,11 +129,59 @@ async function readDb() {
             parsedData.quotedJobs = [];
         }
 
+        if (
+            !parsedData.counters ||
+            typeof parsedData.counters !==
+                "object"
+        ) {
+            parsedData.counters = {};
+        }
+
+        if (
+            !Number.isFinite(
+                parsedData.counters
+                    .nextQuoteNumber,
+            )
+        ) {
+            parsedData.counters.nextQuoteNumber = 1;
+        }
+
+        if (
+            !Number.isFinite(
+                parsedData.counters
+                    .nextInvoiceNumber,
+            )
+        ) {
+            parsedData.counters.nextInvoiceNumber = 1;
+        }
+
+        if (
+            !Array.isArray(
+                parsedData.beamTypes,
+            )
+        ) {
+            parsedData.beamTypes = [];
+        }
+
+        if (
+            !Array.isArray(
+                parsedData.scalePresets,
+            )
+        ) {
+            parsedData.scalePresets = [];
+        }
+
         return parsedData;
     } catch (error) {
         if (error.code === "ENOENT") {
             const initialDb = {
                 quotedJobs: [],
+                counters: {
+                    nextQuoteNumber: 1,
+                    nextInvoiceNumber: 1,
+                },
+                beamTypes: [],
+                scalePresets: [],
             };
 
             await writeDb(initialDb);
@@ -203,6 +251,50 @@ function toOptionalBoolean(
     }
 
     return toBoolean(value);
+}
+
+/**
+ * Resolves the number to assign for a manually-overridable sequence
+ * (quote number / invoice number). A blank manual value consumes the
+ * next counter value; a provided one is used as-is and advances the
+ * counter so future auto-assigned numbers never fall behind it.
+ */
+function assignSequenceNumber(
+    counters,
+    counterKey,
+    manualValue,
+) {
+    if (
+        manualValue !== undefined &&
+        manualValue !== null &&
+        String(manualValue).trim() !== ""
+    ) {
+        const parsed = Number(
+            manualValue,
+        );
+
+        if (
+            !Number.isFinite(parsed) ||
+            parsed <= 0
+        ) {
+            return {
+                error:
+                    "Number must be a positive value.",
+            };
+        }
+
+        counters[counterKey] = Math.max(
+            counters[counterKey],
+            parsed + 1,
+        );
+
+        return { number: parsed };
+    }
+
+    const number = counters[counterKey];
+    counters[counterKey] = number + 1;
+
+    return { number };
 }
 
 function createFileRecord(file) {
@@ -286,6 +378,241 @@ app.get(
 );
 
 /**
+ * Get the next quote/invoice numbers that will be auto-assigned
+ */
+app.get(
+    "/api/counters",
+    async (_req, res) => {
+        try {
+            const db =
+                await readDb();
+
+            return res.json(
+                db.counters,
+            );
+        } catch (error) {
+            console.error(
+                "Failed to load counters:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to load counters",
+                });
+        }
+    },
+);
+
+/**
+ * Get the shared steel beam type catalogue
+ */
+app.get(
+    "/api/beam-types",
+    async (_req, res) => {
+        try {
+            const db =
+                await readDb();
+
+            return res.json(
+                db.beamTypes,
+            );
+        } catch (error) {
+            console.error(
+                "Failed to load beam types:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to load beam types",
+                });
+        }
+    },
+);
+
+/**
+ * Create a steel beam type
+ */
+app.post(
+    "/api/beam-types",
+    async (req, res) => {
+        try {
+            const name = (
+                req.body.name ?? ""
+            ).trim();
+
+            const kgPerMetre = Number(
+                req.body.kgPerMetre,
+            );
+
+            if (!name) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "Name is required.",
+                    });
+            }
+
+            if (
+                !Number.isFinite(
+                    kgPerMetre,
+                ) ||
+                kgPerMetre <= 0
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "kg/m must be a positive number.",
+                    });
+            }
+
+            const db =
+                await readDb();
+
+            const beamType = {
+                id: crypto.randomUUID(),
+                name,
+                kgPerMetre,
+            };
+
+            db.beamTypes.push(
+                beamType,
+            );
+
+            await writeDb(db);
+
+            return res
+                .status(201)
+                .json(beamType);
+        } catch (error) {
+            console.error(
+                "Failed to create beam type:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to create beam type",
+                });
+        }
+    },
+);
+
+/**
+ * Get the shared scale preset catalogue
+ */
+app.get(
+    "/api/scale-presets",
+    async (_req, res) => {
+        try {
+            const db =
+                await readDb();
+
+            return res.json(
+                db.scalePresets,
+            );
+        } catch (error) {
+            console.error(
+                "Failed to load scale presets:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to load scale presets",
+                });
+        }
+    },
+);
+
+/**
+ * Save a scale preset
+ */
+app.post(
+    "/api/scale-presets",
+    async (req, res) => {
+        try {
+            const name = (
+                req.body.name ?? ""
+            ).trim();
+
+            if (!name) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "Name is required.",
+                    });
+            }
+
+            const {
+                primaryAxis,
+                secondaryAxis,
+            } = req.body;
+
+            if (
+                !primaryAxis ||
+                typeof primaryAxis !==
+                    "object" ||
+                !secondaryAxis ||
+                typeof secondaryAxis !==
+                    "object"
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "A calibrated scale is required.",
+                    });
+            }
+
+            const db =
+                await readDb();
+
+            const scalePreset = {
+                id: crypto.randomUUID(),
+                name,
+                primaryAxis,
+                secondaryAxis,
+            };
+
+            db.scalePresets.push(
+                scalePreset,
+            );
+
+            await writeDb(db);
+
+            return res
+                .status(201)
+                .json(scalePreset);
+        } catch (error) {
+            console.error(
+                "Failed to save scale preset:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to save scale preset",
+                });
+        }
+    },
+);
+
+/**
  * Get one quote
  */
 app.get(
@@ -317,6 +644,10 @@ app.get(
                     job.files ?? [],
                 takeoff:
                     job.takeoff ?? null,
+                takeoffByFile:
+                    job.takeoffByFile ?? {},
+                invoices:
+                    job.invoices ?? [],
             });
         } catch (error) {
             console.error(
@@ -345,6 +676,48 @@ app.post(
             const db =
                 await readDb();
 
+            const existingQuoteNumbers =
+                new Set(
+                    db.quotedJobs
+                        .map(
+                            (job) =>
+                                job.quoteNumber,
+                        )
+                        .filter((value) =>
+                            Number.isFinite(
+                                value,
+                            ),
+                        ),
+                );
+
+            const quoteNumberResult =
+                assignSequenceNumber(
+                    db.counters,
+                    "nextQuoteNumber",
+                    req.body.quoteNumber,
+                );
+
+            if (quoteNumberResult.error) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            quoteNumberResult.error,
+                    });
+            }
+
+            if (
+                existingQuoteNumbers.has(
+                    quoteNumberResult.number,
+                )
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        message: `Quote number ${quoteNumberResult.number} is already in use.`,
+                    });
+            }
+
             const uploadedFiles = (
                 Array.isArray(req.files)
                     ? req.files
@@ -353,6 +726,9 @@ app.post(
 
             const newQuote = {
                 id: crypto.randomUUID(),
+
+                quoteNumber:
+                    quoteNumberResult.number,
 
                 status:
                     req.body.status ||
@@ -460,6 +836,8 @@ app.post(
                     ),
 
                 takeoff: null,
+
+                invoices: [],
 
                 files:
                     uploadedFiles,
@@ -691,6 +1069,16 @@ app.patch(
                               .takeoff ??
                           null,
 
+                takeoffByFile:
+                    req.body
+                        .takeoffByFile !==
+                    undefined
+                        ? req.body
+                              .takeoffByFile
+                        : existingQuote
+                              .takeoffByFile ??
+                          {},
+
                 markupEditor:
                     req.body
                         .markupEditor !==
@@ -729,6 +1117,177 @@ app.patch(
                 .json({
                     message:
                         "Failed to update quote",
+                });
+        }
+    },
+);
+
+/**
+ * Create an invoice against a quoted job
+ */
+app.post(
+    "/api/quoted-jobs/:id/invoices",
+    async (req, res) => {
+        try {
+            const db = await readDb();
+
+            const jobIndex =
+                db.quotedJobs.findIndex(
+                    (job) =>
+                        job.id ===
+                        req.params.id,
+                );
+
+            if (jobIndex === -1) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Quote not found",
+                    });
+            }
+
+            const description = (
+                req.body.description ?? ""
+            ).trim();
+
+            if (!description) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "Description is required.",
+                    });
+            }
+
+            const amountIncGst = Number(
+                req.body.amountIncGst,
+            );
+
+            if (
+                !Number.isFinite(
+                    amountIncGst,
+                ) ||
+                amountIncGst <= 0
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            "Amount must be a positive number.",
+                    });
+            }
+
+            const existingInvoiceNumbers =
+                new Set(
+                    db.quotedJobs.flatMap(
+                        (job) =>
+                            (
+                                job.invoices ??
+                                []
+                            ).map(
+                                (invoice) =>
+                                    invoice.invoiceNumber,
+                            ),
+                    ),
+                );
+
+            const invoiceNumberResult =
+                assignSequenceNumber(
+                    db.counters,
+                    "nextInvoiceNumber",
+                    req.body.invoiceNumber,
+                );
+
+            if (
+                invoiceNumberResult.error
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            invoiceNumberResult.error,
+                    });
+            }
+
+            if (
+                existingInvoiceNumbers.has(
+                    invoiceNumberResult.number,
+                )
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        message: `Invoice number ${invoiceNumberResult.number} is already in use.`,
+                    });
+            }
+
+            const job =
+                db.quotedJobs[jobIndex];
+
+            const priorInvoices =
+                job.invoices ?? [];
+
+            const amountPaidToDate =
+                priorInvoices.reduce(
+                    (sum, invoice) =>
+                        sum +
+                        (Number(
+                            invoice.amountIncGst,
+                        ) || 0),
+                    0,
+                );
+
+            const gst =
+                Math.round(
+                    (amountIncGst / 11) *
+                        100,
+                ) / 100;
+
+            const newInvoice = {
+                id: crypto.randomUUID(),
+                invoiceNumber:
+                    invoiceNumberResult.number,
+                description,
+                amountIncGst,
+                gst,
+                amountExGst:
+                    Math.round(
+                        (amountIncGst -
+                            gst) *
+                            100,
+                    ) / 100,
+                amountPaidToDate,
+                date:
+                    req.body.date ||
+                    new Date().toISOString(),
+                createdAt:
+                    new Date().toISOString(),
+            };
+
+            job.invoices = [
+                ...priorInvoices,
+                newInvoice,
+            ];
+            job.updatedAt =
+                new Date().toISOString();
+
+            await writeDb(db);
+
+            return res
+                .status(201)
+                .json(newInvoice);
+        } catch (error) {
+            console.error(
+                "Failed to create invoice:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to create invoice",
                 });
         }
     },

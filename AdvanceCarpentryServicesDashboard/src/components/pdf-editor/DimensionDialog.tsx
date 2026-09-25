@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 type DimensionDialogProps = {
   open: boolean;
   measuredMm: number;
+  initialLabel?: string;
   initialText?: string;
   title?: string;
   confirmLabel?: string;
   onCancel: () => void;
-  onSave: (displayText: string) => void;
+  onSave: (label: string, displayText: string) => void;
 };
 
 function formatMeasuredDistance(distanceMm: number) {
@@ -21,25 +22,36 @@ function formatMeasuredDistance(distanceMm: number) {
 export default function DimensionDialog({
   open,
   measuredMm,
+  initialLabel,
   initialText,
   title = "Add Dimension",
   confirmLabel = "Add Dimension",
   onCancel,
   onSave,
 }: DimensionDialogProps) {
+  const [label, setLabel] = useState("");
   const [displayText, setDisplayText] = useState("");
 
   useEffect(() => {
     if (open) {
+      setLabel(initialLabel ?? "");
       setDisplayText(initialText ?? String(Math.round(measuredMm)));
     }
-  }, [open, measuredMm, initialText]);
+  }, [open, measuredMm, initialLabel, initialText]);
 
   if (!open) {
     return null;
   }
 
   const canSave = displayText.trim().length > 0;
+
+  function handleSave() {
+    if (!canSave) {
+      return;
+    }
+
+    onSave(label.trim(), displayText.trim());
+  }
 
   return (
     <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/50 p-4">
@@ -61,16 +73,32 @@ export default function DimensionDialog({
         </div>
 
         <label className="mt-5 block text-sm font-medium text-slate-700">
-          Text shown on drawing
+          Label (optional)
         </label>
 
         <input
           autoFocus
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && canSave) {
+              handleSave();
+            }
+          }}
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          placeholder="e.g. Wall A"
+        />
+
+        <label className="mt-4 block text-sm font-medium text-slate-700">
+          Measurement shown on drawing
+        </label>
+
+        <input
           value={displayText}
           onChange={(event) => setDisplayText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && canSave) {
-              onSave(displayText.trim());
+              handleSave();
             }
           }}
           className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-lg font-semibold"
@@ -78,7 +106,9 @@ export default function DimensionDialog({
         />
 
         <p className="mt-2 text-xs text-slate-500">
-          The measured value is only a reference. This text is what will appear on the plan.
+          The measured value is only a reference. The label and
+          measurement appear together on one line on the plan — label
+          white-out, measurement highlighted in yellow.
         </p>
 
         <div className="mt-6 flex justify-end gap-3">
@@ -93,7 +123,7 @@ export default function DimensionDialog({
           <button
             type="button"
             disabled={!canSave}
-            onClick={() => onSave(displayText.trim())}
+            onClick={handleSave}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             {confirmLabel}

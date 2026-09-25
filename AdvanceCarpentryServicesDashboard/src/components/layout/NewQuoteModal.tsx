@@ -13,6 +13,7 @@ export type QuoteStatus =
 
 export type NewQuoteFormData = {
     name: string;
+    quoteNumber: string;
     status: QuoteStatus;
     quotedAmount: number;
     gst: number;
@@ -96,6 +97,10 @@ function NewQuoteModal({
     mode = "create",
 }: NewQuoteModalProps) {
     const [name, setName] = useState("");
+    const [quoteNumber, setQuoteNumber] = useState("");
+    const [nextQuoteNumber, setNextQuoteNumber] = useState<number | null>(
+        null
+    );
     const [address, setAddress] = useState("");
     const [status, setStatus] = useState<QuoteStatus>("Quoted");
     const [wallsRoofRate, setWallsRoofRate] = useState("");
@@ -158,6 +163,15 @@ function NewQuoteModal({
 
         if (mode === "create") {
             resetForm();
+
+            fetch("http://localhost:3001/api/counters")
+                .then((response) => response.json())
+                .then((counters) =>
+                    setNextQuoteNumber(
+                        Number(counters?.nextQuoteNumber) || null
+                    )
+                )
+                .catch(() => setNextQuoteNumber(null));
         }
     }, [isOpen, mode, initialQuote]);
 
@@ -207,6 +221,7 @@ function NewQuoteModal({
 
     function resetForm() {
         setName("");
+        setQuoteNumber("");
         setAddress("");
         setStatus("Quoted");
         setWallsRoofRate("");
@@ -238,6 +253,7 @@ function NewQuoteModal({
 
         onCreateQuote({
             name,
+            quoteNumber,
             quotedAmount: finalCost,
             gst: finalCost * 0.1,
             inclGst: finalCost * 1.1,
@@ -342,6 +358,27 @@ function NewQuoteModal({
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                         />
                     </div>
+
+                    {mode === "create" && (
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                Quote Number
+                            </label>
+                            <input
+                                type="text"
+                                value={quoteNumber}
+                                onChange={(event) =>
+                                    setQuoteNumber(event.target.value)
+                                }
+                                placeholder={
+                                    nextQuoteNumber
+                                        ? `Leave blank to use ${nextQuoteNumber}`
+                                        : "Leave blank to auto-assign"
+                                }
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                            />
+                        </div>
+                    )}
                     <div>
                         <label className="mb-1 block text-sm font-medium text-gray-700">
                             Status

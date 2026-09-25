@@ -416,6 +416,34 @@ export default function LayerPanel({
               />
             </div>
 
+            {([
+              ["labelScale", "Label size", 0.4, 1.5, 0.05],
+              ["labelOpacity", "Highlight opacity", 0.3, 1, 0.05],
+            ] as const).map(([key, title, min, max, step]) => (
+              <div key={key}>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-600">
+                    {title}
+                  </label>
+                  <span className="text-xs font-semibold text-slate-700">
+                    {Math.round(markupStyle[key] * 100)}%
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={markupStyle[key]}
+                  onChange={(event) =>
+                    updateMarkupStyle({ [key]: Number(event.target.value) })
+                  }
+                  className="mt-2 w-full"
+                />
+              </div>
+            ))}
+
             <div>
               <label className="text-xs font-medium text-slate-600">
                 Arrow ends

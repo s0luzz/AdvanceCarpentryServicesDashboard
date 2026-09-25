@@ -49,6 +49,8 @@ export type MarkupStyle = {
   dimensionLineWidth: number;
   dimensionStartArrow: boolean;
   dimensionEndArrow: boolean;
+  labelScale: number;
+  labelOpacity: number;
   shapeFillColor: string;
   shapeOpacity: number;
   shapeStrokeColor: string;
@@ -60,12 +62,14 @@ export type DimensionMarkup = {
   start: Point;
   end: Point;
   measuredMm: number;
+  label: string;
   displayText: string;
   lineColor: string;
   textColor: string;
   lineWidth: number;
   startArrow: boolean;
   endArrow: boolean;
+  labelOffset?: Point;
 };
 
 export type ShapeType = "rectangle" | "ellipse";
@@ -118,9 +122,11 @@ export const DEFAULT_OVERLAY_TRANSFORM: OverlayTransform = {
 export const DEFAULT_MARKUP_STYLE: MarkupStyle = {
   dimensionLineColor: "#2563eb",
   dimensionTextColor: "#2563eb",
-  dimensionLineWidth: 2.5,
+  dimensionLineWidth: 1.5,
   dimensionStartArrow: false,
   dimensionEndArrow: false,
+  labelScale: 0.7,
+  labelOpacity: 0.8,
   shapeFillColor: "#ef4444",
   shapeOpacity: 0.3,
   shapeStrokeColor: "#b91c1c",

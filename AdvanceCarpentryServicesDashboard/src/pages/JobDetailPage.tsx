@@ -14,6 +14,10 @@ import NewQuoteModal, {
     type QuoteStatus,
 } from "../components/layout/NewQuoteModal";
 import PdfViewer from "../components/PdfViewer";
+import InvoiceDialog, {
+    type NewInvoicePayload,
+} from "../components/invoices/InvoiceDialog";
+import { generateInvoicePdf } from "../components/invoices/generateInvoicePdf";
 
 type AttachedFile = {
     id: string;
@@ -27,9 +31,21 @@ type AttachedFile = {
     uploadedAt: string;
 };
 
+type Invoice = {
+    id: string;
+    invoiceNumber: number;
+    description: string;
+    amountIncGst: number;
+    gst: number;
+    amountExGst: number;
+    amountPaidToDate: number;
+    date: string;
+};
+
 type Job = {
     id: string;
     name: string;
+    quoteNumber?: number;
     status: QuoteStatus;
     quotedAmount: number;
     gst: number;
@@ -54,6 +70,7 @@ type Job = {
     additionalCost: number;
     steel: number;
     files: AttachedFile[];
+    invoices?: Invoice[];
 };
 
 const API_URL = "http://localhost:3001";
@@ -99,6 +116,21 @@ function JobDetailPage() {
     const [
         fileError,
         setFileError,
+    ] = useState("");
+
+    const [
+        isInvoiceDialogOpen,
+        setIsInvoiceDialogOpen,
+    ] = useState(false);
+
+    const [
+        isCreatingInvoice,
+        setIsCreatingInvoice,
+    ] = useState(false);
+
+    const [
+        invoiceError,
+        setInvoiceError,
     ] = useState("");
 
     async function fetchJobDetails() {
@@ -201,6 +233,92 @@ function JobDetailPage() {
                 error,
             );
         }
+    }
+
+    async function handleCreateInvoice(
+        payload: NewInvoicePayload,
+    ) {
+        if (!jobId) {
+            return;
+        }
+
+        setInvoiceError("");
+        setIsCreatingInvoice(true);
+
+        try {
+            const response = await fetch(
+                `${API_URL}/api/quoted-jobs/${jobId}/invoices`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                    },
+                    body: JSON.stringify(
+                        payload,
+                    ),
+                },
+            );
+
+            const result = await response
+                .json()
+                .catch(() => null);
+
+            if (!response.ok) {
+                throw new Error(
+                    result?.message ??
+                        "Failed to create invoice",
+                );
+            }
+
+            const newInvoice: Invoice =
+                result;
+
+            setJobDetails(
+                (currentJob) => {
+                    if (!currentJob) {
+                        return currentJob;
+                    }
+
+                    return {
+                        ...currentJob,
+                        invoices: [
+                            ...(currentJob.invoices ??
+                                []),
+                            newInvoice,
+                        ],
+                    };
+                },
+            );
+
+            setIsInvoiceDialogOpen(
+                false,
+            );
+        } catch (error) {
+            setInvoiceError(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to create invoice",
+            );
+        } finally {
+            setIsCreatingInvoice(false);
+        }
+    }
+
+    function handleDownloadInvoice(
+        invoice: Invoice,
+    ) {
+        if (!jobDetails) {
+            return;
+        }
+
+        generateInvoicePdf(
+            {
+                name: jobDetails.name,
+                address: jobDetails.address,
+            },
+            invoice,
+        );
     }
 
     async function handleFileUpload(
@@ -506,6 +624,7 @@ function JobDetailPage() {
             <main className="min-h-screen bg-gray-100 p-4">
                 <PdfViewer
                     jobId={jobId}
+                    fileId={selectedFile.id}
                     file={getFileUrl(
                         selectedFile,
                     )}
@@ -543,11 +662,20 @@ function JobDetailPage() {
                                     "No address listed"}
                             </p>
 
-                            <div className="mt-3">
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
                                 <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                                     {jobDetails?.status ??
                                         "Quoted"}
                                 </span>
+
+                                {jobDetails?.quoteNumber && (
+                                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                                        Quote #
+                                        {
+                                            jobDetails.quoteNumber
+                                        }
+                                    </span>
+                                )}
                             </div>
 
                             <button
@@ -1055,10 +1183,129 @@ function JobDetailPage() {
                                     </div>
                                 )}
                             </div>
+
+                            <div className="border-t border-gray-200 p-6">
+                                <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900">
+                                            Invoices
+                                        </h3>
+
+                                        <p className="mt-1 text-sm text-gray-500">
+                                            Issue and download
+                                            invoices for this
+                                            job.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setInvoiceError("");
+                                            setIsInvoiceDialogOpen(
+                                                true,
+                                            );
+                                        }}
+                                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                                    >
+                                        New Invoice
+                                    </button>
+                                </div>
+
+                                {!jobDetails.invoices ||
+                                jobDetails.invoices
+                                    .length === 0 ? (
+                                    <p className="rounded-xl border border-dashed border-gray-300 px-6 py-8 text-center text-sm text-gray-500">
+                                        No invoices issued
+                                        yet.
+                                    </p>
+                                ) : (
+                                    <div className="overflow-x-auto rounded-xl border border-gray-200">
+                                        <table className="w-full min-w-[720px] text-left text-sm">
+                                            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                                                <tr>
+                                                    <th className="px-6 py-3 font-semibold">
+                                                        Invoice #
+                                                    </th>
+                                                    <th className="px-6 py-3 font-semibold">
+                                                        Description
+                                                    </th>
+                                                    <th className="px-6 py-3 font-semibold">
+                                                        Date
+                                                    </th>
+                                                    <th className="px-6 py-3 font-semibold">
+                                                        Amount Inc GST
+                                                    </th>
+                                                    <th className="px-6 py-3 text-right font-semibold">
+                                                        Actions
+                                                    </th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody className="divide-y divide-gray-200">
+                                                {jobDetails.invoices.map(
+                                                    (invoice) => (
+                                                        <tr
+                                                            key={
+                                                                invoice.id
+                                                            }
+                                                            className="hover:bg-gray-50"
+                                                        >
+                                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                                                {
+                                                                    invoice.invoiceNumber
+                                                                }
+                                                            </td>
+                                                            <td className="max-w-xs truncate px-6 py-4 text-gray-700">
+                                                                {
+                                                                    invoice.description
+                                                                }
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-700">
+                                                                {formatUploadedDate(
+                                                                    invoice.date,
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-700">
+                                                                {formatCurrency(
+                                                                    invoice.amountIncGst,
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleDownloadInvoice(
+                                                                            invoice,
+                                                                        )
+                                                                    }
+                                                                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                                                                >
+                                                                    Download PDF
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
                         </>
                     )}
                 </section>
             </div>
+
+            <InvoiceDialog
+                isOpen={isInvoiceDialogOpen}
+                isSubmitting={isCreatingInvoice}
+                error={invoiceError}
+                onClose={() =>
+                    setIsInvoiceDialogOpen(false)
+                }
+                onSubmit={handleCreateInvoice}
+            />
 
             {jobDetails && (
                 <NewQuoteModal

@@ -61,6 +61,9 @@ type PdfEditorCanvasProps = {
   onDeleteDimension: (id: string) => void;
   onDeleteShape: (id: string) => void;
   onEditDimensionText: (id: string) => void;
+  onMoveDimensionLabel: (id: string, offset: Point) => void;
+  baseGrayscale: boolean;
+  onToggleGrayscale: () => void;
   onUpdateDimensionPoints: (
     id: string,
     start: Point,
@@ -200,6 +203,9 @@ export default function PdfEditorCanvas({
   onDeleteShape,
   onEditDimensionText,
   onUpdateDimensionPoints,
+  onMoveDimensionLabel,
+  baseGrayscale,
+  onToggleGrayscale,
   onUpdateShapePoints,
 }: PdfEditorCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -217,7 +223,6 @@ export default function PdfEditorCanvas({
   const [viewPosition, setViewPosition] = useState({ x: 0, y: 0 });
   const [drawStart, setDrawStart] = useState<Point | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
-  const [baseGrayscale, setBaseGrayscale] = useState(false);
 
   useEffect(() => {
     const node = baseImageRef.current;
@@ -607,7 +612,7 @@ export default function PdfEditorCanvas({
 
         <button
           type="button"
-          onClick={() => setBaseGrayscale((current) => !current)}
+          onClick={onToggleGrayscale}
           disabled={!basePage}
           title="Toggle black & white base plan"
           className={`rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
@@ -774,6 +779,9 @@ export default function PdfEditorCanvas({
               onDelete={onDeleteDimension}
               onEditText={onEditDimensionText}
               onUpdatePoints={onUpdateDimensionPoints}
+              onMoveLabel={onMoveDimensionLabel}
+              labelScale={markupStyle.labelScale}
+              labelOpacity={markupStyle.labelOpacity}
             />
           ))}
 
@@ -1039,6 +1047,9 @@ type DimensionLineProps = {
   onDelete: (id: string) => void;
   onEditText: (id: string) => void;
   onUpdatePoints: (id: string, start: Point, end: Point) => void;
+  onMoveLabel: (id: string, offset: Point) => void;
+  labelScale: number;
+  labelOpacity: number;
 };
 
 function DimensionLine({
@@ -1048,6 +1059,9 @@ function DimensionLine({
   onDelete,
   onEditText,
   onUpdatePoints,
+  onMoveLabel,
+  labelScale,
+  labelOpacity,
 }: DimensionLineProps) {
   const dx = dimension.end.x - dimension.start.x;
   const dy = dimension.end.y - dimension.start.y;
@@ -1068,16 +1082,39 @@ function DimensionLine({
     y: (dimension.start.y + dimension.end.y) / 2,
   };
 
-  const fontSize = 14 / viewScale;
-  const labelWidth = Math.max(
-    dimension.displayText.length * fontSize * 0.62,
-    36 / viewScale,
+  const fontSize = (14 * labelScale) / viewScale;
+  const hasLabel = dimension.label.trim().length > 0;
+  const segmentPaddingX = (6 * labelScale) / viewScale;
+  const segmentPaddingY = (4 * labelScale) / viewScale;
+  const segmentGap = (4 * labelScale) / viewScale;
+  const segmentHeight = fontSize + segmentPaddingY * 2;
+
+  const labelSegmentWidth = hasLabel
+    ? dimension.label.length * fontSize * 0.6 +
+      segmentPaddingX * 2
+    : 0;
+
+  const measurementSegmentWidth = Math.max(
+    dimension.displayText.length * fontSize * 0.62 +
+      segmentPaddingX * 2,
+    (36 * labelScale) / viewScale,
   );
+
+  const totalLabelWidth =
+    labelSegmentWidth +
+    (hasLabel ? segmentGap : 0) +
+    measurementSegmentWidth;
+
   const lineWidth = dimension.lineWidth / viewScale;
   const labelGap = fontSize / 2 + lineWidth / 2 + 4 / viewScale;
-  const labelCenter = {
+  const offset = dimension.labelOffset ?? { x: 0, y: 0 };
+  const defaultCenter = {
     x: midpoint.x - normal.x * labelGap,
     y: midpoint.y - normal.y * labelGap,
+  };
+  const labelCenter = {
+    x: defaultCenter.x + offset.x,
+    y: defaultCenter.y + offset.y,
   };
   const interactive = tool === "delete" || tool === "edit";
   const hitStrokeWidth = Math.max(lineWidth * 3, 14 / viewScale);
@@ -1157,12 +1194,71 @@ function DimensionLine({
         />
       )}
 
-      <Group x={labelCenter.x} y={labelCenter.y} rotation={labelAngle}>
+      <Group
+        x={labelCenter.x}
+        y={labelCenter.y}
+        rotation={labelAngle}
+        draggable={tool === "edit"}
+        onDragEnd={(event) => {
+          event.cancelBubble = true;
+          onMoveLabel(dimension.id, {
+            x: event.target.x() - defaultCenter.x,
+            y: event.target.y() - defaultCenter.y,
+          });
+        }}
+      >
+        {hasLabel && (
+          <>
+            <Rect
+              listening={false}
+              x={-totalLabelWidth / 2}
+              y={-segmentHeight / 2}
+              width={labelSegmentWidth}
+              height={segmentHeight}
+              cornerRadius={3 / viewScale}
+              fill="#ffffff"
+              opacity={labelOpacity}
+            />
+
+            <Text
+              listening={false}
+              x={-totalLabelWidth / 2}
+              y={-fontSize / 2}
+              width={labelSegmentWidth}
+              text={dimension.label}
+              align="center"
+              fontSize={fontSize}
+              fontStyle="bold"
+              fill="#111827"
+            />
+          </>
+        )}
+
+        <Rect
+          x={
+            -totalLabelWidth / 2 +
+            (hasLabel
+              ? labelSegmentWidth + segmentGap
+              : 0)
+          }
+          y={-segmentHeight / 2}
+          width={measurementSegmentWidth}
+          height={segmentHeight}
+          cornerRadius={3 / viewScale}
+          fill="#fde047"
+          opacity={labelOpacity}
+        />
+
         <Text
           listening={false}
-          x={-labelWidth / 2}
+          x={
+            -totalLabelWidth / 2 +
+            (hasLabel
+              ? labelSegmentWidth + segmentGap
+              : 0)
+          }
           y={-fontSize / 2}
-          width={labelWidth}
+          width={measurementSegmentWidth}
           text={dimension.displayText}
           align="center"
           fontSize={fontSize}

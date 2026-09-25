@@ -17,6 +17,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 type PdfViewerProps = {
   jobId: string;
+  fileId: string;
   file: File | string;
   onClose?: () => void;
 };
@@ -92,6 +93,37 @@ type AssignedPageWallTotal = {
   measurementCount: number;
 };
 
+type ViewerMode = "architectural" | "structural";
+
+type BeamType = {
+  id: string;
+  name: string;
+  kgPerMetre: number;
+};
+
+type SteelBeam = {
+  id: string;
+  pageNumber: number;
+  start: Point;
+  end: Point;
+  lengthMm: number;
+  beamTypeId: string;
+};
+
+type SteelPost = {
+  id: string;
+  pageNumber: number;
+  point: Point;
+  costDollars: number;
+};
+
+type ScalePreset = {
+  id: string;
+  name: string;
+  primaryAxis: AxisCalibration;
+  secondaryAxis: AxisCalibration;
+};
+
 type AssignedPageAreaTotal = {
   pageNumber: number;
   category: AreaCategory;
@@ -100,9 +132,12 @@ type AssignedPageAreaTotal = {
 };
 
 type SavedTakeoff = {
+  mode: ViewerMode | null;
   calibrations: Record<number, Calibration>;
   measurements: Measurement[];
   areaBoxes: AreaBox[];
+  beams: SteelBeam[];
+  posts: SteelPost[];
 
   assignedPageWallTotals: Record<
     number,
@@ -128,7 +163,9 @@ type ViewerTool =
   | "calibrate"
   | "measure-walls"
   | "measure-floor"
-  | "measure-roof";
+  | "measure-roof"
+  | "measure-beams"
+  | "select-posts";
 
 type AreaDrawingStep =
   | "first-line"
@@ -149,13 +186,106 @@ const SAVE_DELAY_MS = 600;
 
 function createEmptyTakeoff(): SavedTakeoff {
   return {
+    mode: null,
     calibrations: {},
     measurements: [],
     areaBoxes: [],
+    beams: [],
+    posts: [],
     assignedPageWallTotals: {},
     assignedPageAreaTotals: {},
     retainScaleAcrossPages: false,
   };
+}
+
+const STEEL_RATE_PER_KG = 5.5;
+const STEEL_BEAM_DOUBLING_FACTOR = 2;
+
+function computeSteelTotal(
+  beamsList: SteelBeam[],
+  postsList: SteelPost[],
+  beamTypesList: BeamType[],
+) {
+  const beamWeightKg = beamsList.reduce(
+    (sum, beam) => {
+      const beamType = beamTypesList.find(
+        (type) => type.id === beam.beamTypeId,
+      );
+
+      if (!beamType) {
+        return sum;
+      }
+
+      const lengthM = beam.lengthMm / 1000;
+
+      return (
+        sum +
+        beamType.kgPerMetre *
+          lengthM *
+          STEEL_BEAM_DOUBLING_FACTOR
+      );
+    },
+    0,
+  );
+
+  const postCostTotal = postsList.reduce(
+    (sum, post) => sum + post.costDollars,
+    0,
+  );
+
+  return (
+    postCostTotal +
+    beamWeightKg * STEEL_RATE_PER_KG
+  );
+}
+
+function sumWallAndAreaTotals(
+  wallTotals: Record<
+    number,
+    AssignedPageWallTotal
+  >,
+  areaTotals: Record<
+    string,
+    AssignedPageAreaTotal
+  >,
+) {
+  const walls = Object.values(
+    wallTotals,
+  ).reduce(
+    (totals, item) => {
+      totals[item.category] +=
+        item.totalMm;
+
+      return totals;
+    },
+    {
+      gfw: 0,
+      ffw: 0,
+    } satisfies Record<
+      MeasurementCategory,
+      number
+    >,
+  );
+
+  const areas = Object.values(
+    areaTotals,
+  ).reduce(
+    (totals, item) => {
+      totals[item.category] +=
+        item.totalM2;
+
+      return totals;
+    },
+    {
+      floor: 0,
+      roof: 0,
+    } satisfies Record<
+      AreaCategory,
+      number
+    >,
+  );
+
+  return { ...walls, ...areas };
 }
 
 function clamp(
@@ -376,6 +506,12 @@ function parseSavedTakeoff(
     value as Partial<SavedTakeoff>;
 
   return {
+    mode:
+      takeoff.mode === "architectural" ||
+      takeoff.mode === "structural"
+        ? takeoff.mode
+        : null,
+
     calibrations:
       takeoff.calibrations &&
       typeof takeoff.calibrations ===
@@ -395,6 +531,16 @@ function parseSavedTakeoff(
         takeoff.areaBoxes,
       )
         ? takeoff.areaBoxes
+        : [],
+
+    beams:
+      Array.isArray(takeoff.beams)
+        ? takeoff.beams
+        : [],
+
+    posts:
+      Array.isArray(takeoff.posts)
+        ? takeoff.posts
         : [],
 
     assignedPageWallTotals:
@@ -474,6 +620,7 @@ async function readJsonResponse<T>(
 
 export default function PdfViewer({
   jobId,
+  fileId,
   file,
   onClose,
 }: PdfViewerProps) {
@@ -514,6 +661,117 @@ export default function PdfViewer({
 
   const hasLoadedTakeoffRef =
     useRef(false);
+
+  const otherFilesTakeoffRef =
+    useRef<
+      Record<string, SavedTakeoff>
+    >({});
+
+  const [
+    viewerMode,
+    setViewerMode,
+  ] = useState<ViewerMode | null>(
+    null,
+  );
+
+  const [
+    beamTypes,
+    setBeamTypes,
+  ] = useState<BeamType[]>([]);
+
+  const [
+    beamTypesError,
+    setBeamTypesError,
+  ] = useState("");
+
+  const [
+    scalePresets,
+    setScalePresets,
+  ] = useState<ScalePreset[]>([]);
+
+  const [
+    selectedScalePresetId,
+    setSelectedScalePresetId,
+  ] = useState("");
+
+  const [
+    isSavingScalePreset,
+    setIsSavingScalePreset,
+  ] = useState(false);
+
+  const [
+    newScalePresetName,
+    setNewScalePresetName,
+  ] = useState("");
+
+  const [
+    scalePresetError,
+    setScalePresetError,
+  ] = useState("");
+
+  const [
+    lastPostCost,
+    setLastPostCost,
+  ] = useState("");
+
+  const [
+    beams,
+    setBeams,
+  ] = useState<SteelBeam[]>([]);
+
+  const [
+    posts,
+    setPosts,
+  ] = useState<SteelPost[]>([]);
+
+  const [
+    beamDrawStart,
+    setBeamDrawStart,
+  ] = useState<Point | null>(null);
+
+  const [
+    beamDrawEnd,
+    setBeamDrawEnd,
+  ] = useState<Point | null>(null);
+
+  const [
+    pendingBeam,
+    setPendingBeam,
+  ] = useState<{
+    start: Point;
+    end: Point;
+    lengthMm: number;
+  } | null>(null);
+
+  const [
+    selectedBeamTypeId,
+    setSelectedBeamTypeId,
+  ] = useState("");
+
+  const [
+    isCreatingBeamType,
+    setIsCreatingBeamType,
+  ] = useState(false);
+
+  const [
+    newBeamTypeName,
+    setNewBeamTypeName,
+  ] = useState("");
+
+  const [
+    newBeamTypeKgPerMetre,
+    setNewBeamTypeKgPerMetre,
+  ] = useState("");
+
+  const [
+    pendingPostPoint,
+    setPendingPostPoint,
+  ] = useState<Point | null>(null);
+
+  const [
+    postCostInput,
+    setPostCostInput,
+  ] = useState("");
 
   const [
     numberOfPages,
@@ -883,6 +1141,48 @@ export default function PdfViewer({
       ],
     );
 
+  const currentBeams =
+    useMemo(
+      () =>
+        beams.filter(
+          (beam) =>
+            beam.pageNumber ===
+            pageNumber,
+        ),
+      [beams, pageNumber],
+    );
+
+  const currentPosts =
+    useMemo(
+      () =>
+        posts.filter(
+          (post) =>
+            post.pageNumber ===
+            pageNumber,
+        ),
+      [posts, pageNumber],
+    );
+
+  const steelTotal = useMemo(
+    () =>
+      computeSteelTotal(
+        beams,
+        posts,
+        beamTypes,
+      ),
+    [beams, posts, beamTypes],
+  );
+
+  const sortedBeamTypes = useMemo(
+    () =>
+      [...beamTypes].sort(
+        (a, b) =>
+          a.kgPerMetre -
+          b.kgPerMetre,
+      ),
+    [beamTypes],
+  );
+
   const currentFloorBoxes =
     useMemo(
       () =>
@@ -967,63 +1267,17 @@ export default function PdfViewer({
     );
 
   const assignedTotals =
-    useMemo(() => {
-      const wallTotals =
-        Object.values(
+    useMemo(
+      () =>
+        sumWallAndAreaTotals(
           assignedPageWallTotals,
-        ).reduce(
-          (
-            totals,
-            item,
-          ) => {
-            totals[
-              item.category
-            ] +=
-              item.totalMm;
-
-            return totals;
-          },
-          {
-            gfw: 0,
-            ffw: 0,
-          } satisfies Record<
-            MeasurementCategory,
-            number
-          >,
-        );
-
-      const areaTotals =
-        Object.values(
           assignedPageAreaTotals,
-        ).reduce(
-          (
-            totals,
-            item,
-          ) => {
-            totals[
-              item.category
-            ] +=
-              item.totalM2;
-
-            return totals;
-          },
-          {
-            floor: 0,
-            roof: 0,
-          } satisfies Record<
-            AreaCategory,
-            number
-          >,
-        );
-
-      return {
-        ...wallTotals,
-        ...areaTotals,
-      };
-    }, [
-      assignedPageWallTotals,
-      assignedPageAreaTotals,
-    ]);
+        ),
+      [
+        assignedPageWallTotals,
+        assignedPageAreaTotals,
+      ],
+    );
 
   useEffect(() => {
     scaleRef.current =
@@ -1055,6 +1309,52 @@ export default function PdfViewer({
   useEffect(() => {
     let cancelled = false;
 
+    fetch(`${API_URL}/api/beam-types`)
+      .then((response) =>
+        response.json(),
+      )
+      .then((data) => {
+        if (
+          !cancelled &&
+          Array.isArray(data)
+        ) {
+          setBeamTypes(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(
+      `${API_URL}/api/scale-presets`,
+    )
+      .then((response) =>
+        response.json(),
+      )
+      .then((data) => {
+        if (
+          !cancelled &&
+          Array.isArray(data)
+        ) {
+          setScalePresets(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
     async function loadTakeoff() {
       hasLoadedTakeoffRef.current =
         false;
@@ -1075,6 +1375,10 @@ export default function PdfViewer({
         const job =
           await readJsonResponse<{
             takeoff?: unknown;
+            takeoffByFile?: Record<
+              string,
+              unknown
+            >;
           }>(
             response,
             "Unable to load quote",
@@ -1084,10 +1388,62 @@ export default function PdfViewer({
           return;
         }
 
+        const takeoffByFile =
+          job.takeoffByFile &&
+          typeof job.takeoffByFile ===
+            "object"
+            ? job.takeoffByFile
+            : {};
+
+        otherFilesTakeoffRef.current =
+          Object.fromEntries(
+            Object.entries(
+              takeoffByFile,
+            )
+              .filter(
+                ([
+                  entryFileId,
+                ]) =>
+                  entryFileId !==
+                  fileId,
+              )
+              .map(
+                ([
+                  entryFileId,
+                  value,
+                ]) => [
+                  entryFileId,
+                  parseSavedTakeoff(
+                    value,
+                  ),
+                ],
+              ),
+          );
+
         const saved =
           parseSavedTakeoff(
-            job.takeoff,
+            takeoffByFile[fileId] ??
+              job.takeoff,
           );
+
+        // Jobs measured before structural mode existed have no
+        // "mode" saved, but already have architectural data — infer
+        // the mode rather than interrupting them with the prompt.
+        const hasExistingArchitecturalData =
+          saved.measurements.length >
+            0 ||
+          saved.areaBoxes.length >
+            0 ||
+          Object.keys(
+            saved.assignedPageWallTotals,
+          ).length > 0;
+
+        setViewerMode(
+          saved.mode ??
+            (hasExistingArchitecturalData
+              ? "architectural"
+              : null),
+        );
 
         setCalibrations(
           saved.calibrations,
@@ -1100,6 +1456,10 @@ export default function PdfViewer({
         setAreaBoxes(
           saved.areaBoxes,
         );
+
+        setBeams(saved.beams);
+
+        setPosts(saved.posts);
 
         setAssignedPageWallTotals(
           saved.assignedPageWallTotals,
@@ -1150,12 +1510,14 @@ export default function PdfViewer({
     };
   }, [
     jobId,
+    fileId,
     file,
   ]);
 
   useEffect(() => {
     if (
-      !hasLoadedTakeoffRef.current
+      !hasLoadedTakeoffRef.current ||
+      viewerMode === null
     ) {
       return;
     }
@@ -1165,13 +1527,99 @@ export default function PdfViewer({
         async () => {
           const takeoff: SavedTakeoff =
             {
+              mode: viewerMode,
               calibrations,
               measurements,
               areaBoxes,
+              beams,
+              posts,
               assignedPageWallTotals,
               assignedPageAreaTotals,
               retainScaleAcrossPages,
             };
+
+          const takeoffByFile = {
+            ...otherFilesTakeoffRef.current,
+            [fileId]: takeoff,
+          };
+
+          // The job's overall wall/floor/roof/steel totals are the
+          // sum across every attached file's measurements, not just
+          // the one currently open.
+          const combinedTotals =
+            Object.values(
+              otherFilesTakeoffRef.current,
+            ).reduce(
+              (totals, other) => {
+                const otherTotals =
+                  sumWallAndAreaTotals(
+                    other.assignedPageWallTotals,
+                    other.assignedPageAreaTotals,
+                  );
+
+                return {
+                  gfw:
+                    totals.gfw +
+                    otherTotals.gfw,
+                  ffw:
+                    totals.ffw +
+                    otherTotals.ffw,
+                  floor:
+                    totals.floor +
+                    otherTotals.floor,
+                  roof:
+                    totals.roof +
+                    otherTotals.roof,
+                };
+              },
+              { ...assignedTotals },
+            );
+
+          // Only touch job.steel if a structural file has actually
+          // been used for this job — otherwise this would silently
+          // overwrite a manually-typed Steel Cost with $0 every time
+          // an unrelated architectural file is saved.
+          const hasStructuralFile =
+            viewerMode ===
+              "structural" ||
+            Object.values(
+              otherFilesTakeoffRef.current,
+            ).some(
+              (other) =>
+                other.mode ===
+                "structural",
+            );
+
+          const combinedSteelTotal =
+            steelTotal +
+            Object.values(
+              otherFilesTakeoffRef.current,
+            ).reduce(
+              (sum, other) =>
+                sum +
+                computeSteelTotal(
+                  other.beams,
+                  other.posts,
+                  beamTypes,
+                ),
+              0,
+            );
+
+          const patchBody: Record<
+            string,
+            unknown
+          > = {
+            takeoffByFile,
+            gfw: combinedTotals.gfw / 1000,
+            ffw: combinedTotals.ffw / 1000,
+            floor: combinedTotals.floor,
+            roof: combinedTotals.roof,
+          };
+
+          if (hasStructuralFile) {
+            patchBody.steel =
+              combinedSteelTotal;
+          }
 
           setIsSaving(true);
           setSaveError("");
@@ -1191,23 +1639,7 @@ export default function PdfViewer({
 
                   body:
                     JSON.stringify(
-                      {
-                        takeoff,
-
-                        gfw:
-                          assignedTotals.gfw /
-                          1000,
-
-                        ffw:
-                          assignedTotals.ffw /
-                          1000,
-
-                        floor:
-                          assignedTotals.floor,
-
-                        roof:
-                          assignedTotals.roof,
-                      },
+                      patchBody,
                     ),
                 },
               );
@@ -1248,9 +1680,13 @@ export default function PdfViewer({
     };
   }, [
     jobId,
+    fileId,
+    viewerMode,
     calibrations,
     measurements,
     areaBoxes,
+    beams,
+    posts,
     assignedPageWallTotals,
     assignedPageAreaTotals,
     retainScaleAcrossPages,
@@ -1258,6 +1694,8 @@ export default function PdfViewer({
     assignedTotals.ffw,
     assignedTotals.floor,
     assignedTotals.roof,
+    steelTotal,
+    beamTypes,
   ]);
 
   useEffect(() => {
@@ -1533,6 +1971,128 @@ export default function PdfViewer({
     };
   }, []);
 
+  function chooseMode(
+    mode: ViewerMode,
+  ) {
+    setViewerMode(mode);
+
+    if (
+      mode === "structural" &&
+      Object.keys(calibrations)
+        .length === 0
+    ) {
+      const architecturalFile =
+        Object.values(
+          otherFilesTakeoffRef.current,
+        ).find(
+          (other) =>
+            other.mode ===
+              "architectural" &&
+            Object.keys(
+              other.calibrations,
+            ).length > 0,
+        );
+
+      if (architecturalFile) {
+        setCalibrations(
+          architecturalFile.calibrations,
+        );
+
+        setRetainScaleAcrossPages(
+          architecturalFile.retainScaleAcrossPages,
+        );
+      }
+    }
+  }
+
+  function applyScalePreset(
+    presetId: string,
+  ) {
+    setSelectedScalePresetId(
+      presetId,
+    );
+
+    const preset = scalePresets.find(
+      (item) => item.id === presetId,
+    );
+
+    if (!preset) {
+      return;
+    }
+
+    setCalibrations((current) => ({
+      ...current,
+      [pageNumber]: {
+        pageNumber,
+        primaryAxis:
+          preset.primaryAxis,
+        secondaryAxis:
+          preset.secondaryAxis,
+      },
+    }));
+
+    setViewerError("");
+  }
+
+  async function saveScalePreset() {
+    if (!currentCalibration) {
+      return;
+    }
+
+    if (!newScalePresetName.trim()) {
+      setScalePresetError(
+        "Enter a name for this scale.",
+      );
+
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/scale-presets`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            name: newScalePresetName.trim(),
+            primaryAxis:
+              currentCalibration.primaryAxis,
+            secondaryAxis:
+              currentCalibration.secondaryAxis,
+          }),
+        },
+      );
+
+      const created =
+        await readJsonResponse<ScalePreset>(
+          response,
+          "Unable to save scale preset",
+        );
+
+      setScalePresets((current) => [
+        ...current,
+        created,
+      ]);
+
+      setSelectedScalePresetId(
+        created.id,
+      );
+
+      setNewScalePresetName("");
+      setIsSavingScalePreset(false);
+      setScalePresetError("");
+    } catch (error) {
+      setScalePresetError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save scale preset.",
+      );
+    }
+  }
+
   function resetDrawingState() {
     setCalibrationAxis(
       "primary",
@@ -1553,6 +2113,9 @@ export default function PdfViewer({
     setMeasurementEnd(
       null,
     );
+
+    setBeamDrawStart(null);
+    setBeamDrawEnd(null);
 
     resetAreaDrawing();
 
@@ -1946,6 +2509,24 @@ export default function PdfViewer({
       handleAreaPoint(
         point,
       );
+
+      return;
+    }
+
+    if (
+      activeTool ===
+      "measure-beams"
+    ) {
+      handleBeamPoint(point);
+
+      return;
+    }
+
+    if (
+      activeTool ===
+      "select-posts"
+    ) {
+      handlePostPoint(point);
     }
   }
 
@@ -2335,6 +2916,231 @@ export default function PdfViewer({
     setViewerError("");
   }
 
+  function handleBeamPoint(
+    point: Point,
+  ) {
+    if (!currentCalibration) {
+      return;
+    }
+
+    if (!beamDrawStart) {
+      setBeamDrawStart(point);
+      setBeamDrawEnd(point);
+      setViewerError("");
+      return;
+    }
+
+    const pageAspectRatio =
+      getPageAspectRatio();
+
+    if (!pageAspectRatio) {
+      setViewerError(
+        "Unable to read the PDF page dimensions.",
+      );
+
+      return;
+    }
+
+    const lengthMm =
+      calculateCalibratedDistance(
+        beamDrawStart,
+        point,
+        pageAspectRatio,
+        currentCalibration,
+      );
+
+    if (
+      lengthMm === null ||
+      lengthMm <= 0
+    ) {
+      setViewerError(
+        "Unable to calculate that beam length.",
+      );
+
+      return;
+    }
+
+    setPendingBeam({
+      start: beamDrawStart,
+      end: point,
+      lengthMm,
+    });
+
+    setSelectedBeamTypeId(
+      sortedBeamTypes[0]?.id ?? "",
+    );
+
+    setBeamDrawStart(null);
+    setBeamDrawEnd(null);
+    setViewerError("");
+  }
+
+  function saveBeam() {
+    if (
+      !pendingBeam ||
+      !selectedBeamTypeId
+    ) {
+      return;
+    }
+
+    setBeams((current) => [
+      ...current,
+      {
+        id: createId(),
+        pageNumber,
+        start: pendingBeam.start,
+        end: pendingBeam.end,
+        lengthMm:
+          pendingBeam.lengthMm,
+        beamTypeId:
+          selectedBeamTypeId,
+      },
+    ]);
+
+    setPendingBeam(null);
+  }
+
+  function cancelBeam() {
+    setPendingBeam(null);
+  }
+
+  async function createBeamType() {
+    const kgPerMetre = Number(
+      newBeamTypeKgPerMetre,
+    );
+
+    if (
+      !newBeamTypeName.trim() ||
+      !Number.isFinite(
+        kgPerMetre,
+      ) ||
+      kgPerMetre <= 0
+    ) {
+      setBeamTypesError(
+        "Enter a name and a positive kg/m value.",
+      );
+
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/beam-types`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            name: newBeamTypeName.trim(),
+            kgPerMetre,
+          }),
+        },
+      );
+
+      const created =
+        await readJsonResponse<BeamType>(
+          response,
+          "Unable to create beam type",
+        );
+
+      setBeamTypes((current) => [
+        ...current,
+        created,
+      ]);
+
+      setSelectedBeamTypeId(
+        created.id,
+      );
+
+      setNewBeamTypeName("");
+      setNewBeamTypeKgPerMetre("");
+      setIsCreatingBeamType(false);
+      setBeamTypesError("");
+    } catch (error) {
+      setBeamTypesError(
+        error instanceof Error
+          ? error.message
+          : "Unable to create beam type.",
+      );
+    }
+  }
+
+  function handlePostPoint(
+    point: Point,
+  ) {
+    setPendingPostPoint(point);
+
+    // Post price stays the same throughout a set of plans, so
+    // default to whatever was last entered instead of blank.
+    setPostCostInput(
+      lastPostCost,
+    );
+  }
+
+  function savePost() {
+    const cost = Number(
+      postCostInput,
+    );
+
+    if (
+      !pendingPostPoint ||
+      !Number.isFinite(cost) ||
+      cost < 0
+    ) {
+      return;
+    }
+
+    setPosts((current) => [
+      ...current,
+      {
+        id: createId(),
+        pageNumber,
+        point: pendingPostPoint,
+        costDollars: cost,
+      },
+    ]);
+
+    setLastPostCost(
+      postCostInput,
+    );
+
+    setPendingPostPoint(null);
+  }
+
+  function cancelPost() {
+    setPendingPostPoint(null);
+  }
+
+  function undoLastBeam() {
+    setBeams((current) =>
+      current.slice(0, -1),
+    );
+  }
+
+  function undoLastPost() {
+    setPosts((current) =>
+      current.slice(0, -1),
+    );
+  }
+
+  function deleteBeam(id: string) {
+    setBeams((current) =>
+      current.filter(
+        (beam) => beam.id !== id,
+      ),
+    );
+  }
+
+  function deletePost(id: string) {
+    setPosts((current) =>
+      current.filter(
+        (post) => post.id !== id,
+      ),
+    );
+  }
+
   function handleAreaPoint(
     point: Point,
   ) {
@@ -2580,6 +3386,14 @@ export default function PdfViewer({
       setAreaLineEnd(
         point,
       );
+    }
+
+    if (
+      activeTool ===
+        "measure-beams" &&
+      beamDrawStart
+    ) {
+      setBeamDrawEnd(point);
     }
   }
 
@@ -2968,6 +3782,63 @@ export default function PdfViewer({
   const roofDarkColour =
     "#b91c1c";
 
+  if (
+    !isLoadingTakeoff &&
+    viewerMode === null
+  ) {
+    return (
+      <div className="flex h-[calc(100vh-2rem)] min-h-[650px] w-full flex-col items-center justify-center gap-4 rounded-xl border border-slate-200 bg-slate-100 p-8 text-center">
+        <h2 className="text-lg font-semibold text-slate-900">
+          What are you measuring?
+        </h2>
+
+        <p className="max-w-md text-sm text-slate-600">
+          Architectural plans use the
+          wall, floor and roof takeoff
+          tools. Structural plans
+          measure steel beams and
+          posts instead.
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              chooseMode(
+                "architectural",
+              )
+            }
+            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Architectural
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              chooseMode(
+                "structural",
+              )
+            }
+            className="rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-700"
+          >
+            Structural
+          </button>
+        </div>
+
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-2 text-sm text-slate-500 hover:underline"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-[calc(100vh-2rem)] min-h-[650px] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
       <header className="relative z-40 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
@@ -2985,6 +3856,27 @@ export default function PdfViewer({
           <span className="text-sm font-semibold text-slate-800">
             PDF Takeoff
           </span>
+
+          {viewerMode && (
+            <button
+              type="button"
+              onClick={() =>
+                setViewerMode(null)
+              }
+              title="Switch between architectural and structural"
+              className={`rounded-full px-2.5 py-1 text-xs font-medium hover:opacity-80 ${
+                viewerMode ===
+                "structural"
+                  ? "bg-orange-100 text-orange-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {viewerMode ===
+              "structural"
+                ? "Structural"
+                : "Architectural"}
+            </button>
+          )}
 
           {pageCalibration && (
             <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
@@ -3192,112 +4084,258 @@ export default function PdfViewer({
           Retain Scale
         </button>
 
-        <button
-          type="button"
-          onClick={() =>
-            selectTool(
-              "measure-walls",
+        <select
+          value={
+            selectedScalePresetId
+          }
+          onChange={(event) =>
+            applyScalePreset(
+              event.target.value,
             )
           }
           disabled={
-            !currentCalibration
+            scalePresets.length ===
+            0
           }
-          className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
-            activeTool ===
-            "measure-walls"
-              ? "bg-blue-600 text-white"
-              : "border border-blue-300 bg-white text-blue-700 hover:bg-blue-50"
-          }`}
+          title="Apply a saved scale to this page"
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Measure Walls
-        </button>
+          <option value="">
+            {scalePresets.length ===
+            0
+              ? "No saved scales"
+              : "Use saved scale…"}
+          </option>
+
+          {scalePresets.map(
+            (preset) => (
+              <option
+                key={preset.id}
+                value={preset.id}
+              >
+                {preset.name}
+              </option>
+            ),
+          )}
+        </select>
 
         <button
           type="button"
-          onClick={() =>
-            selectTool(
-              "measure-floor",
-            )
-          }
+          onClick={() => {
+            setNewScalePresetName(
+              "",
+            );
+
+            setScalePresetError(
+              "",
+            );
+
+            setIsSavingScalePreset(
+              true,
+            );
+          }}
           disabled={
             !currentCalibration
           }
-          className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
-            activeTool ===
-            "measure-floor"
-              ? "bg-green-600 text-white"
-              : "border border-green-300 bg-white text-green-700 hover:bg-green-50"
-          }`}
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Measure Floor
+          Save Scale as Preset
         </button>
 
-        <button
-          type="button"
-          onClick={() =>
-            selectTool(
-              "measure-roof",
-            )
-          }
-          disabled={
-            !currentCalibration
-          }
-          className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
-            activeTool ===
-            "measure-roof"
-              ? "bg-red-600 text-white"
-              : "border border-red-300 bg-white text-red-700 hover:bg-red-50"
-          }`}
-        >
-          Measure Roof
-        </button>
+        {viewerMode ===
+          "architectural" && (
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                selectTool(
+                  "measure-walls",
+                )
+              }
+              disabled={
+                !currentCalibration
+              }
+              className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                activeTool ===
+                "measure-walls"
+                  ? "bg-blue-600 text-white"
+                  : "border border-blue-300 bg-white text-blue-700 hover:bg-blue-50"
+              }`}
+            >
+              Measure Walls
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                selectTool(
+                  "measure-floor",
+                )
+              }
+              disabled={
+                !currentCalibration
+              }
+              className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                activeTool ===
+                "measure-floor"
+                  ? "bg-green-600 text-white"
+                  : "border border-green-300 bg-white text-green-700 hover:bg-green-50"
+              }`}
+            >
+              Measure Floor
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                selectTool(
+                  "measure-roof",
+                )
+              }
+              disabled={
+                !currentCalibration
+              }
+              className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                activeTool ===
+                "measure-roof"
+                  ? "bg-red-600 text-white"
+                  : "border border-red-300 bg-white text-red-700 hover:bg-red-50"
+              }`}
+            >
+              Measure Roof
+            </button>
+          </>
+        )}
+
+        {viewerMode ===
+          "structural" && (
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                selectTool(
+                  "measure-beams",
+                )
+              }
+              disabled={
+                !currentCalibration
+              }
+              className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                activeTool ===
+                "measure-beams"
+                  ? "bg-orange-600 text-white"
+                  : "border border-orange-300 bg-white text-orange-700 hover:bg-orange-50"
+              }`}
+            >
+              Measure Beams
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                selectTool(
+                  "select-posts",
+                )
+              }
+              disabled={
+                !currentCalibration
+              }
+              className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                activeTool ===
+                "select-posts"
+                  ? "bg-purple-600 text-white"
+                  : "border border-purple-300 bg-white text-purple-700 hover:bg-purple-50"
+              }`}
+            >
+              Select Posts
+            </button>
+          </>
+        )}
 
         <div className="ml-auto flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={
-              undoLastWall
-            }
-            disabled={
-              currentMeasurements.length ===
-              0
-            }
-            className="rounded-md border border-blue-300 px-3 py-2 text-sm text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Undo Wall
-          </button>
+          {viewerMode ===
+            "architectural" && (
+            <>
+              <button
+                type="button"
+                onClick={
+                  undoLastWall
+                }
+                disabled={
+                  currentMeasurements.length ===
+                  0
+                }
+                className="rounded-md border border-blue-300 px-3 py-2 text-sm text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Undo Wall
+              </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              undoLastArea(
-                "floor",
-              )
-            }
-            disabled={
-              currentFloorBoxes.length ===
-              0
-            }
-            className="rounded-md border border-green-300 px-3 py-2 text-sm text-green-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Undo Floor
-          </button>
+              <button
+                type="button"
+                onClick={() =>
+                  undoLastArea(
+                    "floor",
+                  )
+                }
+                disabled={
+                  currentFloorBoxes.length ===
+                  0
+                }
+                className="rounded-md border border-green-300 px-3 py-2 text-sm text-green-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Undo Floor
+              </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              undoLastArea(
-                "roof",
-              )
-            }
-            disabled={
-              currentRoofBoxes.length ===
-              0
-            }
-            className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Undo Roof
-          </button>
+              <button
+                type="button"
+                onClick={() =>
+                  undoLastArea(
+                    "roof",
+                  )
+                }
+                disabled={
+                  currentRoofBoxes.length ===
+                  0
+                }
+                className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Undo Roof
+              </button>
+            </>
+          )}
+
+          {viewerMode ===
+            "structural" && (
+            <>
+              <button
+                type="button"
+                onClick={
+                  undoLastBeam
+                }
+                disabled={
+                  currentBeams.length ===
+                  0
+                }
+                className="rounded-md border border-orange-300 px-3 py-2 text-sm text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Undo Beam
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  undoLastPost
+                }
+                disabled={
+                  currentPosts.length ===
+                  0
+                }
+                className="rounded-md border border-purple-300 px-3 py-2 text-sm text-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Undo Post
+              </button>
+            </>
+          )}
 
           {pageCalibration && (
             <button
@@ -3313,6 +4351,8 @@ export default function PdfViewer({
         </div>
       </div>
 
+      {viewerMode ===
+        "architectural" && (
       <div className="relative z-40 grid shrink-0 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-blue-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-2">
@@ -3640,6 +4680,66 @@ export default function PdfViewer({
           </div>
         </div>
       </div>
+      )}
+
+      {viewerMode ===
+        "structural" && (
+        <div className="relative z-40 grid shrink-0 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:grid-cols-3">
+          <div className="rounded-lg border border-orange-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Beams (this page)
+            </p>
+
+            <p className="mt-1 text-2xl font-bold text-orange-700">
+              {
+                currentBeams.length
+              }
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-purple-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Posts (this page)
+            </p>
+
+            <p className="mt-1 text-2xl font-bold text-purple-700">
+              {
+                currentPosts.length
+              }
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Steel Total (whole job)
+            </p>
+
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              $
+              {steelTotal.toLocaleString(
+                "en-AU",
+                {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                },
+              )}
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500">
+              {beams.length} beam
+              {beams.length === 1
+                ? ""
+                : "s"}{" "}
+              +{" "}
+              {posts.length} post
+              {posts.length === 1
+                ? ""
+                : "s"}{" "}
+              across all pages
+            </p>
+          </div>
+        </div>
+      )}
 
       {currentCalibration && (
         <div className="relative z-40 flex shrink-0 flex-wrap items-center gap-4 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-800">
@@ -3786,6 +4886,9 @@ export default function PdfViewer({
                     handleOverlayClick
                   }
                 >
+                  {viewerMode ===
+                    "architectural" && (
+                  <>
                   {currentFloorBoxes.map(
                     (box) => (
                       <AreaBoxOverlay
@@ -3943,6 +5046,186 @@ export default function PdfViewer({
                       );
                     },
                   )}
+                  </>
+                  )}
+
+                  {viewerMode ===
+                    "structural" && (
+                  <>
+                  {currentBeams.map(
+                    (beam) => {
+                      const midpointX =
+                        (beam.start
+                          .x +
+                          beam.end
+                            .x) /
+                        2;
+
+                      const midpointY =
+                        (beam.start
+                          .y +
+                          beam.end
+                            .y) /
+                        2;
+
+                      const beamType =
+                        beamTypes.find(
+                          (type) =>
+                            type.id ===
+                            beam.beamTypeId,
+                        );
+
+                      return (
+                        <g
+                          key={
+                            beam.id
+                          }
+                        >
+                          <line
+                            x1={`${beam.start.x * 100}%`}
+                            y1={`${beam.start.y * 100}%`}
+                            x2={`${beam.end.x * 100}%`}
+                            y2={`${beam.end.y * 100}%`}
+                            stroke="#ea580c"
+                            strokeWidth="4"
+                            vectorEffect="non-scaling-stroke"
+                            pointerEvents="none"
+                          />
+
+                          <circle
+                            cx={`${beam.start.x * 100}%`}
+                            cy={`${beam.start.y * 100}%`}
+                            r="5"
+                            fill="#ea580c"
+                            stroke="#ffffff"
+                            strokeWidth="2"
+                            vectorEffect="non-scaling-stroke"
+                            pointerEvents="none"
+                          />
+
+                          <circle
+                            cx={`${beam.end.x * 100}%`}
+                            cy={`${beam.end.y * 100}%`}
+                            r="5"
+                            fill="#ea580c"
+                            stroke="#ffffff"
+                            strokeWidth="2"
+                            vectorEffect="non-scaling-stroke"
+                            pointerEvents="none"
+                          />
+
+                          <g
+                            className={
+                              activeTool ===
+                              "pan"
+                                ? "pointer-events-auto cursor-pointer"
+                                : "pointer-events-none"
+                            }
+                            onClick={(
+                              event,
+                            ) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+
+                              deleteBeam(
+                                beam.id,
+                              );
+                            }}
+                          >
+                            <rect
+                              x={`${midpointX * 100}%`}
+                              y={`${midpointY * 100}%`}
+                              width="110"
+                              height="28"
+                              rx="6"
+                              fill="#ea580c"
+                              transform="translate(-55 -14)"
+                            />
+
+                            <text
+                              x={`${midpointX * 100}%`}
+                              y={`${midpointY * 100}%`}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="12"
+                              fontWeight="600"
+                            >
+                              {beamType?.name ??
+                                "Unknown"}
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    },
+                  )}
+
+                  {currentPosts.map(
+                    (post) => (
+                      <g
+                        key={
+                          post.id
+                        }
+                        className={
+                          activeTool ===
+                          "pan"
+                            ? "pointer-events-auto cursor-pointer"
+                            : "pointer-events-none"
+                        }
+                        onClick={(
+                          event,
+                        ) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+
+                          deletePost(
+                            post.id,
+                          );
+                        }}
+                      >
+                        <circle
+                          cx={`${post.point.x * 100}%`}
+                          cy={`${post.point.y * 100}%`}
+                          r="9"
+                          fill="#9333ea"
+                          stroke="#ffffff"
+                          strokeWidth="2"
+                          vectorEffect="non-scaling-stroke"
+                        />
+
+                        <text
+                          x={`${post.point.x * 100}%`}
+                          y={`${post.point.y * 100}%`}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          dy="-16"
+                          fill="#9333ea"
+                          fontSize="12"
+                          fontWeight="700"
+                        >
+                          $
+                          {post.costDollars.toLocaleString(
+                            "en-AU",
+                          )}
+                        </text>
+                      </g>
+                    ),
+                  )}
+
+                  {beamDrawStart && (
+                    <circle
+                      cx={`${beamDrawStart.x * 100}%`}
+                      cy={`${beamDrawStart.y * 100}%`}
+                      r="5"
+                      fill="#ea580c"
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                      vectorEffect="non-scaling-stroke"
+                      pointerEvents="none"
+                    />
+                  )}
+                  </>
+                  )}
 
                   {primaryAxisToDisplay && (
                     <CalibrationLine
@@ -3992,6 +5275,19 @@ export default function PdfViewer({
                           measurementEnd
                         }
                         colour="#2563eb"
+                      />
+                    )}
+
+                  {beamDrawStart &&
+                    beamDrawEnd && (
+                      <PreviewLine
+                        start={
+                          beamDrawStart
+                        }
+                        end={
+                          beamDrawEnd
+                        }
+                        colour="#ea580c"
                       />
                     )}
 
@@ -4160,6 +5456,329 @@ export default function PdfViewer({
                 "primary"
                   ? "Save and Set Axis 2"
                   : "Save Scale"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingBeam && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-900">
+              What type of beam is
+              this?
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {formatDistance(
+                pendingBeam.lengthMm,
+              )}{" "}
+              measured
+            </p>
+
+            {!isCreatingBeamType ? (
+              <>
+                <select
+                  autoFocus
+                  value={
+                    selectedBeamTypeId
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setSelectedBeamTypeId(
+                      event.target
+                        .value,
+                    )
+                  }
+                  className="mt-5 w-full rounded-lg border border-slate-300 px-3 py-2"
+                >
+                  {sortedBeamTypes.length ===
+                    0 && (
+                    <option value="">
+                      No beam types
+                      yet
+                    </option>
+                  )}
+
+                  {sortedBeamTypes.map(
+                    (type) => (
+                      <option
+                        key={
+                          type.id
+                        }
+                        value={
+                          type.id
+                        }
+                      >
+                        {type.name}{" "}
+                        (
+                        {
+                          type.kgPerMetre
+                        }{" "}
+                        kg/m)
+                      </option>
+                    ),
+                  )}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIsCreatingBeamType(
+                      true,
+                    )
+                  }
+                  className="mt-3 text-sm font-semibold text-orange-700 hover:underline"
+                >
+                  + New beam type
+                </button>
+              </>
+            ) : (
+              <div className="mt-5 space-y-3">
+                <input
+                  type="text"
+                  autoFocus
+                  value={
+                    newBeamTypeName
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setNewBeamTypeName(
+                      event.target
+                        .value,
+                    )
+                  }
+                  placeholder="e.g. 150UB18"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                />
+
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={
+                    newBeamTypeKgPerMetre
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    setNewBeamTypeKgPerMetre(
+                      event.target
+                        .value,
+                    )
+                  }
+                  placeholder="Weight, kg/m e.g. 18"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                />
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingBeamType(
+                        false,
+                      );
+
+                      setBeamTypesError(
+                        "",
+                      );
+                    }}
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      createBeamType
+                    }
+                    className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white"
+                  >
+                    Add Beam Type
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {beamTypesError && (
+              <p className="mt-3 text-sm font-medium text-red-600">
+                {beamTypesError}
+              </p>
+            )}
+
+            {!isCreatingBeamType && (
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={
+                    cancelBeam
+                  }
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    !selectedBeamTypeId
+                  }
+                  onClick={
+                    saveBeam
+                  }
+                  className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Add Beam
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {pendingPostPoint && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Post Cost
+            </h2>
+
+            <div className="mt-5">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                autoFocus
+                value={
+                  postCostInput
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setPostCostInput(
+                    event.target
+                      .value,
+                  )
+                }
+                onKeyDown={(
+                  event,
+                ) => {
+                  if (
+                    event.key ===
+                    "Enter"
+                  ) {
+                    savePost();
+                  }
+                }}
+                placeholder="e.g. 250"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={
+                  cancelPost
+                }
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  !postCostInput
+                }
+                onClick={
+                  savePost
+                }
+                className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Add Post
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSavingScalePreset && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Save Scale as Preset
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Save this page's scale
+              so you can apply it to
+              any other plan without
+              recalibrating.
+            </p>
+
+            <input
+              type="text"
+              autoFocus
+              value={
+                newScalePresetName
+              }
+              onChange={(event) =>
+                setNewScalePresetName(
+                  event.target
+                    .value,
+                )
+              }
+              onKeyDown={(event) => {
+                if (
+                  event.key ===
+                  "Enter"
+                ) {
+                  void saveScalePreset();
+                }
+              }}
+              placeholder="e.g. 1:100 A3"
+              className="mt-5 w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+
+            {scalePresetError && (
+              <p className="mt-3 text-sm font-medium text-red-600">
+                {scalePresetError}
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSavingScalePreset(
+                    false,
+                  );
+
+                  setScalePresetError(
+                    "",
+                  );
+                }}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  !newScalePresetName.trim()
+                }
+                onClick={() =>
+                  void saveScalePreset()
+                }
+                className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Save
               </button>
             </div>
           </div>

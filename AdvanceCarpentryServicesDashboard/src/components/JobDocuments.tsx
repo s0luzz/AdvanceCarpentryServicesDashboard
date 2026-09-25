@@ -90,6 +90,7 @@ export default function PdfViewerPage() {
       <div className="p-4">
         <PdfViewer
           jobId={jobId}
+          fileId={selectedFile?.name ?? "local-file"}
           file={fileUrl}
           onClose={closeViewer}
         />

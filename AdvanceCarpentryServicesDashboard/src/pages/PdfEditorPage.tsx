@@ -68,6 +68,7 @@ type PendingDimension = {
   start: { x: number; y: number };
   end: { x: number; y: number };
   measuredMm: number;
+  initialLabel?: string;
   initialText?: string;
 };
 
@@ -112,6 +113,10 @@ function normaliseDimension(value: unknown): DimensionMarkup | null {
     start: dimension.start,
     end: dimension.end,
     measuredMm: dimension.measuredMm as number,
+    label:
+      typeof dimension.label === "string"
+        ? dimension.label
+        : "",
     displayText: dimension.displayText,
     lineColor:
       typeof dimension.lineColor === "string"
@@ -134,6 +139,7 @@ function normaliseDimension(value: unknown): DimensionMarkup | null {
       typeof dimension.endArrow === "boolean"
         ? dimension.endArrow
         : DEFAULT_MARKUP_STYLE.dimensionEndArrow,
+    labelOffset: dimension.labelOffset,
   };
 }
 
@@ -311,6 +317,7 @@ export default function PdfEditorPage() {
     useState<AlignmentDraft>({});
   const [pendingCalibration, setPendingCalibration] =
     useState<PendingCalibration | null>(null);
+  const [baseGrayscale, setBaseGrayscale] = useState(false);
   const [pendingDimension, setPendingDimension] =
     useState<PendingDimension | null>(null);
 
@@ -719,6 +726,12 @@ export default function PdfEditorPage() {
     setShapes((current) => current.filter((item) => item.id !== id));
   }
 
+  function moveDimensionLabel(id: string, labelOffset: { x: number; y: number }) {
+    setDimensions((current) =>
+      current.map((item) => (item.id === id ? { ...item, labelOffset } : item)),
+    );
+  }
+
   function updateDimensionPoints(
     id: string,
     start: { x: number; y: number },
@@ -771,6 +784,7 @@ export default function PdfEditorPage() {
       start: dimension.start,
       end: dimension.end,
       measuredMm: dimension.measuredMm,
+      initialLabel: dimension.label,
       initialText: dimension.displayText,
     });
   }
@@ -791,6 +805,9 @@ export default function PdfEditorPage() {
         overlayTransform,
         dimensions,
         shapes,
+        baseGrayscale,
+        labelScale: markupStyle.labelScale,
+        labelOpacity: markupStyle.labelOpacity,
       });
     } catch (error) {
       setExportError(
@@ -1062,6 +1079,9 @@ export default function PdfEditorPage() {
             onDeleteShape={deleteShape}
             onEditDimensionText={startEditDimensionText}
             onUpdateDimensionPoints={updateDimensionPoints}
+            onMoveDimensionLabel={moveDimensionLabel}
+            baseGrayscale={baseGrayscale}
+            onToggleGrayscale={() => setBaseGrayscale((v) => !v)}
             onUpdateShapePoints={updateShapePoints}
           />
         </section>
@@ -1132,11 +1152,12 @@ export default function PdfEditorPage() {
       <DimensionDialog
         open={Boolean(pendingDimension)}
         measuredMm={pendingDimension?.measuredMm ?? 0}
+        initialLabel={pendingDimension?.initialLabel}
         initialText={pendingDimension?.initialText}
         title={pendingDimension?.id ? "Edit Dimension" : "Add Dimension"}
         confirmLabel={pendingDimension?.id ? "Save" : "Add Dimension"}
         onCancel={() => setPendingDimension(null)}
-        onSave={(displayText) => {
+        onSave={(label, displayText) => {
           if (!pendingDimension) {
             return;
           }
@@ -1146,10 +1167,30 @@ export default function PdfEditorPage() {
 
             setDimensions((current) =>
               current.map((item) =>
-                item.id === editId ? { ...item, displayText } : item,
+                item.id === editId
+                  ? { ...item, label, displayText }
+                  : item,
               ),
             );
           } else {
+            const near = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+              Math.hypot(a.x - b.x, a.y - b.y) < 20;
+            const p = pendingDimension;
+            const duplicate = dimensions.some(
+              (d) =>
+                (near(d.start, p.start) && near(d.end, p.end)) ||
+                (near(d.start, p.end) && near(d.end, p.start)),
+            );
+
+            if (
+              duplicate &&
+              !window.confirm(
+                "A dimension already sits on this same line. Add a second one anyway?",
+              )
+            ) {
+              return;
+            }
+
             setDimensions((current) => [
               ...current,
               {
@@ -1157,6 +1198,7 @@ export default function PdfEditorPage() {
                 start: pendingDimension.start,
                 end: pendingDimension.end,
                 measuredMm: pendingDimension.measuredMm,
+                label,
                 displayText,
                 lineColor: markupStyle.dimensionLineColor,
                 textColor: markupStyle.dimensionTextColor,

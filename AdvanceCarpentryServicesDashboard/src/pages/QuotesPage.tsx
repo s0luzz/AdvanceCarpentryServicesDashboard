@@ -126,6 +126,11 @@ export default function QuotesPage() {
             );
 
             quoteData.append(
+                "quoteNumber",
+                formData.quoteNumber,
+            );
+
+            quoteData.append(
                 "quotedAmount",
                 String(formData.quotedAmount),
             );
@@ -231,8 +236,13 @@ export default function QuotesPage() {
             );
 
             if (!response.ok) {
+                const errorBody = await response
+                    .json()
+                    .catch(() => null);
+
                 throw new Error(
-                    "Failed to create quote",
+                    errorBody?.message ??
+                        "Failed to create quote",
                 );
             }
 
@@ -243,6 +253,12 @@ export default function QuotesPage() {
             console.error(
                 "Failed to save quote:",
                 error,
+            );
+
+            window.alert(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to save quote.",
             );
         }
     }
