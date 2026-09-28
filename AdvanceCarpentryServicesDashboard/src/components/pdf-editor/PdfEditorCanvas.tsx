@@ -1084,6 +1084,7 @@ function DimensionLine({
 
   const fontSize = (14 * labelScale) / viewScale;
   const hasLabel = dimension.label.trim().length > 0;
+  const hasMeasurement = dimension.displayText.trim().length > 0;
   const segmentPaddingX = (6 * labelScale) / viewScale;
   const segmentPaddingY = (4 * labelScale) / viewScale;
   const segmentGap = (4 * labelScale) / viewScale;
@@ -1094,15 +1095,17 @@ function DimensionLine({
       segmentPaddingX * 2
     : 0;
 
-  const measurementSegmentWidth = Math.max(
-    dimension.displayText.length * fontSize * 0.62 +
-      segmentPaddingX * 2,
-    (36 * labelScale) / viewScale,
-  );
+  const measurementSegmentWidth = hasMeasurement
+    ? Math.max(
+        dimension.displayText.length * fontSize * 0.62 +
+          segmentPaddingX * 2,
+        (36 * labelScale) / viewScale,
+      )
+    : 0;
 
   const totalLabelWidth =
     labelSegmentWidth +
-    (hasLabel ? segmentGap : 0) +
+    (hasLabel && hasMeasurement ? segmentGap : 0) +
     measurementSegmentWidth;
 
   const lineWidth = dimension.lineWidth / viewScale;
@@ -1234,6 +1237,7 @@ function DimensionLine({
           </>
         )}
 
+        {hasMeasurement && (
         <Rect
           x={
             -totalLabelWidth / 2 +
@@ -1248,7 +1252,9 @@ function DimensionLine({
           fill="#fde047"
           opacity={labelOpacity}
         />
+        )}
 
+        {hasMeasurement && (
         <Text
           listening={false}
           x={
@@ -1265,6 +1271,7 @@ function DimensionLine({
           fontStyle="bold"
           fill={dimension.textColor}
         />
+        )}
       </Group>
 
       {tool === "edit" && (

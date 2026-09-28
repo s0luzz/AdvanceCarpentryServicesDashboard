@@ -43,7 +43,7 @@ export default function DimensionDialog({
     return null;
   }
 
-  const canSave = displayText.trim().length > 0;
+  const canSave = label.trim().length > 0 || displayText.trim().length > 0;
 
   function handleSave() {
     if (!canSave) {
@@ -90,7 +90,7 @@ export default function DimensionDialog({
         />
 
         <label className="mt-4 block text-sm font-medium text-slate-700">
-          Measurement shown on drawing
+          Measurement shown on drawing (optional)
         </label>
 
         <input
@@ -106,9 +106,9 @@ export default function DimensionDialog({
         />
 
         <p className="mt-2 text-xs text-slate-500">
-          The measured value is only a reference. The label and
-          measurement appear together on one line on the plan — label
-          white-out, measurement highlighted in yellow.
+          The measured value is only a reference. Fill in at least one of
+          label or measurement — label white-out, measurement highlighted
+          in yellow.
         </p>
 
         <div className="mt-6 flex justify-end gap-3">

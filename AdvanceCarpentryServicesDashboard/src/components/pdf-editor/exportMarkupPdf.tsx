@@ -194,20 +194,23 @@ function drawDimension(
   const cornerRadius = 4 * exportScale;
 
   const hasLabel = dimension.label.trim().length > 0;
+  const hasMeasurement = dimension.displayText.trim().length > 0;
   const labelWidth = hasLabel
     ? context.measureText(dimension.label).width +
       segmentPaddingX * 2
     : 0;
 
-  const measurementWidth = Math.max(
-    context.measureText(dimension.displayText).width +
-      segmentPaddingX * 2,
-    38 * labelScale * exportScale,
-  );
+  const measurementWidth = hasMeasurement
+    ? Math.max(
+        context.measureText(dimension.displayText).width +
+          segmentPaddingX * 2,
+        38 * labelScale * exportScale,
+      )
+    : 0;
 
   const totalWidth =
     labelWidth +
-    (hasLabel ? segmentGap : 0) +
+    (hasLabel && hasMeasurement ? segmentGap : 0) +
     measurementWidth;
 
   const leftEdge = -totalWidth / 2;
@@ -234,29 +237,31 @@ function drawDimension(
     );
   }
 
-  const measurementX =
-    leftEdge +
-    (hasLabel ? labelWidth + segmentGap : 0);
+  if (hasMeasurement) {
+    const measurementX =
+      leftEdge +
+      (hasLabel ? labelWidth + segmentGap : 0);
 
-  context.globalAlpha = labelOpacity;
-  context.fillStyle = "#fde047";
-  context.beginPath();
-  context.roundRect(
-    measurementX,
-    -segmentHeight / 2,
-    measurementWidth,
-    segmentHeight,
-    cornerRadius,
-  );
-  context.fill();
-  context.globalAlpha = 1;
+    context.globalAlpha = labelOpacity;
+    context.fillStyle = "#fde047";
+    context.beginPath();
+    context.roundRect(
+      measurementX,
+      -segmentHeight / 2,
+      measurementWidth,
+      segmentHeight,
+      cornerRadius,
+    );
+    context.fill();
+    context.globalAlpha = 1;
 
-  context.fillStyle = dimension.textColor;
-  context.fillText(
-    dimension.displayText,
-    measurementX + measurementWidth / 2,
-    0,
-  );
+    context.fillStyle = dimension.textColor;
+    context.fillText(
+      dimension.displayText,
+      measurementX + measurementWidth / 2,
+      0,
+    );
+  }
 
   context.restore();
 }
