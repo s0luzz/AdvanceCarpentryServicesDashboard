@@ -66,9 +66,12 @@
         }
       ],
       "date": "2026-09-22T23:29:48.104Z",
-      "updatedAt": "2026-09-25T01:08:53.987Z",
+      "updatedAt": "2026-09-28T02:30:06.638Z",
       "markupEditor": {
-        "base": null,
+        "base": {
+          "fileId": "062a266e-3b6a-4aff-ab3f-44198046bd53",
+          "pageNumber": 2
+        },
         "overlay": null,
         "overlayTransform": {
           "x": 0,
@@ -79,15 +82,47 @@
           "visible": true,
           "locked": false
         },
-        "calibration": null,
-        "dimensions": [],
+        "calibration": {
+          "start": {
+            "x": 104.14990774907734,
+            "y": 429.1559040590406
+          },
+          "end": {
+            "x": 972.1711254612545,
+            "y": 510.7149446494465
+          },
+          "realDistanceMm": 1,
+          "pixelDistance": 871.8444307905846,
+          "mmPerPixel": 0.0011469936202875145
+        },
+        "dimensions": [
+          {
+            "id": "f3643a6a-7f2c-4fa5-bce7-98411191dd6e",
+            "start": {
+              "x": 1059.555811808118,
+              "y": 1271.9326568265683
+            },
+            "end": {
+              "x": 1201.3131918819188,
+              "y": 947.6383763837639
+            },
+            "measuredMm": 0.40594814448140765,
+            "label": "",
+            "displayText": "0",
+            "lineColor": "#2563eb",
+            "textColor": "#2563eb",
+            "lineWidth": 2.5,
+            "startArrow": true,
+            "endArrow": true
+          }
+        ],
         "shapes": [],
         "markupStyle": {
           "dimensionLineColor": "#2563eb",
           "dimensionTextColor": "#2563eb",
           "dimensionLineWidth": 2.5,
-          "dimensionStartArrow": false,
-          "dimensionEndArrow": false,
+          "dimensionStartArrow": true,
+          "dimensionEndArrow": true,
           "labelScale": 0.7,
           "labelOpacity": 0.8,
           "shapeFillColor": "#ef4444",
@@ -23302,7 +23337,7 @@
         }
       ],
       "date": "2026-08-31T03:12:27.349Z",
-      "updatedAt": "2026-09-28T01:20:14.505Z",
+      "updatedAt": "2026-09-28T02:28:58.337Z",
       "takeoffByFile": {
         "92fcfe59-46ef-43d6-9366-05b9a133d739": {
           "mode": "architectural",
@@ -25002,11 +25037,201 @@
             "lineWidth": 1.5,
             "startArrow": false,
             "endArrow": false
+          },
+          {
+            "id": "3b6a6215-a62a-4218-b5eb-ceb0f4d5a455",
+            "start": {
+              "x": 1189.457122635056,
+              "y": 694.7827567959913
+            },
+            "end": {
+              "x": 1190.0849704464079,
+              "y": 948.4332725821416
+            },
+            "measuredMm": 3586.116833462378,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "3d7d044f-d5d4-4426-b734-89e6ac55a114",
+            "start": {
+              "x": 1413.5987912876692,
+              "y": 694.1549089846395
+            },
+            "end": {
+              "x": 1413.5987912876692,
+              "y": 948.4332725821416
+            },
+            "measuredMm": 3594.982347335394,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "0def749c-7264-495f-85b7-d266e09d18ac",
+            "start": {
+              "x": 1881.9732585561546,
+              "y": 1090.3268779476614
+            },
+            "end": {
+              "x": 1881.9732585561546,
+              "y": 1340.2103068657004
+            },
+            "measuredMm": 3532.8468499740407,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "e6358a6d-5f5d-4436-8186-4aeb7a6cfadf",
+            "start": {
+              "x": 1387.857031022243,
+              "y": 952.8282072616046
+            },
+            "end": {
+              "x": 1388.4848788335948,
+              "y": 1208.3622664818104
+            },
+            "measuredMm": 3612.7462513557284,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "8be05a5c-e765-4445-939f-edbc6e3f100a",
+            "start": {
+              "x": 1139.8571455382596,
+              "y": 955.339598507012
+            },
+            "end": {
+              "x": 1141.1128411609632,
+              "y": 1208.9901142931624
+            },
+            "measuredMm": 3586.1497905105566,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "398e3e18-b731-41a5-8bb2-f77d8796f74d",
+            "start": {
+              "x": 1631.4619818267636,
+              "y": 913.2737951464376
+            },
+            "end": {
+              "x": 1633.973373072171,
+              "y": 1207.7344186704586
+            },
+            "measuredMm": 4163.229731964722,
+            "label": "300x63",
+            "displayText": "4.8",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "b43de703-3350-4225-915b-4e28128f751f",
+            "start": {
+              "x": 1837.1951526505402,
+              "y": 952.9788907363292
+            },
+            "end": {
+              "x": 1837.1951526505402,
+              "y": 1078.8498199561495
+            },
+            "measuredMm": 1779.5606444291363,
+            "label": "300x63",
+            "displayText": "4.2/2",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "e2f2e0a4-c133-453c-983a-34aa9a4f7f86",
+            "start": {
+              "x": 2012.9925398290602,
+              "y": 1142.1368793404167
+            },
+            "end": {
+              "x": 2111.4390766490314,
+              "y": 1143.5432584378448
+            },
+            "measuredMm": 1391.9771576428825,
+            "label": "190x45",
+            "displayText": "3.0/2",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "510b29e1-8bd9-422c-a8ce-68e0ff242e54",
+            "start": {
+              "x": 2043.2296904237655,
+              "y": 727.2550455991094
+            },
+            "end": {
+              "x": 2044.6360695211938,
+              "y": 948.7597534440447
+            },
+            "measuredMm": 3131.69218815113,
+            "label": "300x63",
+            "displayText": "3.6",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
+          },
+          {
+            "id": "3871b037-f46f-492d-93c1-1c7044dabb7c",
+            "start": {
+              "x": 1652.9594908874512,
+              "y": 689.9859995172632
+            },
+            "end": {
+              "x": 1652.9594908874512,
+              "y": 903.7556223263435
+            },
+            "measuredMm": 3022.2705916561863,
+            "label": "300x63",
+            "displayText": "3.6",
+            "lineColor": "#0039b3",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": true,
+            "endArrow": true
           }
         ],
         "shapes": [],
         "markupStyle": {
-          "dimensionLineColor": "#dc2626",
+          "dimensionLineColor": "#0039b3",
           "dimensionTextColor": "#111827",
           "dimensionLineWidth": 1.5,
           "dimensionStartArrow": false,
