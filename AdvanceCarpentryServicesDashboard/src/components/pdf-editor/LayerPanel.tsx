@@ -27,7 +27,7 @@ type LayerPanelProps = {
 };
 
 const COLOUR_PRESETS = [
-  "#2563eb",
+  "#0039b3",
   "#dc2626",
   "#16a34a",
   "#f59e0b",
@@ -138,7 +138,7 @@ export default function LayerPanel({
   }
 
   return (
-    <aside className="w-full shrink-0 border-l border-slate-200 bg-white xl:w-80">
+    <aside className="min-h-0 w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white">
       <div className="border-b border-slate-200 p-4">
         <h2 className="font-semibold text-slate-900">
           Layers & Markup
@@ -148,7 +148,7 @@ export default function LayerPanel({
         </p>
       </div>
 
-      <div className="space-y-4 overflow-y-auto p-4 xl:max-h-[calc(100vh-180px)]">
+      <div className="space-y-4 p-4">
         <section className="rounded-xl border border-slate-200 p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

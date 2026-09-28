@@ -120,8 +120,8 @@ export const DEFAULT_OVERLAY_TRANSFORM: OverlayTransform = {
 };
 
 export const DEFAULT_MARKUP_STYLE: MarkupStyle = {
-  dimensionLineColor: "#2563eb",
-  dimensionTextColor: "#2563eb",
+  dimensionLineColor: "#0039b3",
+  dimensionTextColor: "#0039b3",
   dimensionLineWidth: 1.5,
   dimensionStartArrow: false,
   dimensionEndArrow: false,
