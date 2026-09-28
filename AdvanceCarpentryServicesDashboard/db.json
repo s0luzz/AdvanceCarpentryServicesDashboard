@@ -23302,7 +23302,7 @@
         }
       ],
       "date": "2026-08-31T03:12:27.349Z",
-      "updatedAt": "2026-09-28T00:07:28.680Z",
+      "updatedAt": "2026-09-28T01:20:14.505Z",
       "takeoffByFile": {
         "92fcfe59-46ef-43d6-9366-05b9a133d739": {
           "mode": "architectural",
@@ -24480,7 +24480,11 @@
             "textColor": "#111827",
             "lineWidth": 1.5,
             "startArrow": false,
-            "endArrow": false
+            "endArrow": false,
+            "labelOffset": {
+              "x": 2.477742885237376,
+              "y": -4.1295714753960056
+            }
           },
           {
             "id": "5b298888-2670-48a7-b739-f8f239d033b9",
@@ -24571,6 +24575,428 @@
             "measuredMm": 1489.838421191937,
             "label": "300x63",
             "displayText": "3.6",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "34c450a8-0a3a-49b3-8a68-c1abe6c745ce",
+            "start": {
+              "x": 2107.751160067549,
+              "y": 949.1995528522847
+            },
+            "end": {
+              "x": 2213.4818660438555,
+              "y": 948.6038869031224
+            },
+            "measuredMm": 1494.8422990748873,
+            "label": "300x63",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "b1ca6755-90dc-4813-8e2b-9fe901a60867",
+            "start": {
+              "x": 1761.873708425881,
+              "y": 924.5443446686264
+            },
+            "end": {
+              "x": 1834.7695241472688,
+              "y": 926.3079531134987
+            },
+            "measuredMm": 1030.901139371155,
+            "label": "300x63",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "c1d90fa4-471e-4d59-b4b7-6acbfe0cb594",
+            "start": {
+              "x": 2111.068180510594,
+              "y": 948.6469934152143
+            },
+            "end": {
+              "x": 2111.6560499922184,
+              "y": 1093.2628858947419
+            },
+            "measuredMm": 2044.5934476041014,
+            "label": "300x63",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "8c35906c-a637-43f3-a8c6-c4f09c2c780e",
+            "start": {
+              "x": 2012.306107597746,
+              "y": 950.4106018600866
+            },
+            "end": {
+              "x": 2012.306107597746,
+              "y": 1083.2691047071323
+            },
+            "measuredMm": 1878.3508186507406,
+            "label": "300x63",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "cd95fe85-0206-4f7e-8fe4-bebb94c1dd1d",
+            "start": {
+              "x": 2012.306107597746,
+              "y": 1083.2691047071323
+            },
+            "end": {
+              "x": 2012.8939770793702,
+              "y": 1341.9316766217346
+            },
+            "measuredMm": 3656.9756402351136,
+            "label": "300x63",
+            "displayText": "6.0",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "3d3c8aef-70dd-446c-8ff5-77859aeff27e",
+            "start": {
+              "x": 2110.905349887455,
+              "y": 1093.332634834636
+            },
+            "end": {
+              "x": 2114.013430562697,
+              "y": 1483.9147730233763
+            },
+            "measuredMm": 5522.2171807321165,
+            "label": "T-Bar",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "bd56f7a8-bef9-423f-9b88-4086740138af",
+            "start": {
+              "x": 1706.8548621059997,
+              "y": 1343.0151157457406
+            },
+            "end": {
+              "x": 2114.013430562697,
+              "y": 1343.0151157457406
+            },
+            "measuredMm": 5756.399582959073,
+            "label": "310UB",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "98cb91dd-ef6b-4170-bba2-af14737e9d36",
+            "start": {
+              "x": 1317.3087508090068,
+              "y": 690.3181739449282
+            },
+            "end": {
+              "x": 1318.344777700754,
+              "y": 950.3609237735059
+            },
+            "measuredMm": 3676.5083007854064,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "a7fddda8-4cd1-43d7-b5ac-72121e0e152d",
+            "start": {
+              "x": 1317.3087508090068,
+              "y": 950.3609237735059
+            },
+            "end": {
+              "x": 1319.3808045925016,
+              "y": 1213.5117542773255
+            },
+            "measuredMm": 3720.5364360051913,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "340c7cd1-4da3-46b2-b363-636d1e3d053d",
+            "start": {
+              "x": 1474.7848383545997,
+              "y": 951.3969506652531
+            },
+            "end": {
+              "x": 1476.8568921380943,
+              "y": 1213.5117542773255
+            },
+            "measuredMm": 3705.8895646635965,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "131da2ad-1483-4160-815d-a148a8896d22",
+            "start": {
+              "x": 1175.3730666396239,
+              "y": 950.3609237735059
+            },
+            "end": {
+              "x": 1178.481147314866,
+              "y": 1213.5117542773255
+            },
+            "measuredMm": 3720.6805953494927,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "9ae82793-23c8-40c5-972f-4870783865b5",
+            "start": {
+              "x": 1541.0905594264282,
+              "y": 949.3248968817585
+            },
+            "end": {
+              "x": 1541.0905594264282,
+              "y": 687.2100932696862
+            },
+            "measuredMm": 3705.7737773247964,
+            "label": "300x63",
+            "displayText": "4.2",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "fd4b70f4-e296-480d-8578-501c5c621b5a",
+            "start": {
+              "x": 1027.2212211197568,
+              "y": 695.4983084036649
+            },
+            "end": {
+              "x": 1027.2212211197568,
+              "y": 764.9121101507353
+            },
+            "measuredMm": 981.3709212678307,
+            "label": "300x63",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "30ad9e59-2550-4d49-935f-4787e5328dbd",
+            "start": {
+              "x": 1029.2932749032516,
+              "y": 1100.5848230768675
+            },
+            "end": {
+              "x": 1031.3653286867461,
+              "y": 1163.782463473454
+            },
+            "measuredMm": 893.9670694119113,
+            "label": "300x63",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "416df93b-f97c-43d6-b198-6c785f93138a",
+            "start": {
+              "x": 1709.9629427812417,
+              "y": 905.811767428371
+            },
+            "end": {
+              "x": 1708.9269158894942,
+              "y": 1061.2158011904692
+            },
+            "measuredMm": 2197.147901346756,
+            "label": "300x63",
+            "displayText": "4.8",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "1e078423-d8a9-45cb-94e3-69c43eb7fa40",
+            "start": {
+              "x": 763.0343637241899,
+              "y": 809.4612664958702
+            },
+            "end": {
+              "x": 764.0703906159373,
+              "y": 1050.855532272996
+            },
+            "measuredMm": 3412.8586655505965,
+            "label": "240x63",
+            "displayText": "3.6",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false,
+            "labelOffset": {
+              "x": 4.955485770475207,
+              "y": -4.1295714753960056
+            }
+          },
+          {
+            "id": "e74df3c1-0142-47ef-81f8-7b363d879ac3",
+            "start": {
+              "x": 1187.8053893405918,
+              "y": 693.4262546201702
+            },
+            "end": {
+              "x": 1414.6952786332552,
+              "y": 692.3902277284228
+            },
+            "measuredMm": 3207.79809431128,
+            "label": "300x63",
+            "displayText": "3.6",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "90ff372b-c54d-4d23-93f9-a1cdfac290df",
+            "start": {
+              "x": 1595.9999846890362,
+              "y": 690.3181739449282
+            },
+            "end": {
+              "x": 1710.998969672989,
+              "y": 689.2821470531809
+            },
+            "measuredMm": 1625.9192949368999,
+            "label": "2x190x45",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "e7d543ea-cb57-4ffb-9e55-35625fd74602",
+            "start": {
+              "x": 2174.102990284042,
+              "y": 771.1282715012193
+            },
+            "end": {
+              "x": 2175.139017175789,
+              "y": 904.7757405366237
+            },
+            "measuredMm": 1889.561978353258,
+            "label": "2x190x45",
+            "displayText": "4.8",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "7af4dc46-2c0e-4ec6-b8b8-eaae068d4fdc",
+            "start": {
+              "x": 1027.8196752455985,
+              "y": 951.3465488449928
+            },
+            "end": {
+              "x": 1502.3199916658716,
+              "y": 951.3465488449928
+            },
+            "measuredMm": 6708.475849860698,
+            "label": "310UB",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "5380ccb8-a34b-412d-97fa-fe354c45a925",
+            "start": {
+              "x": 1028.8557021373458,
+              "y": 840.4916714280293
+            },
+            "end": {
+              "x": 1030.9277559208406,
+              "y": 1019.724323700316
+            },
+            "measuredMm": 2534.1569302814178,
+            "label": "300PFC",
+            "displayText": "",
+            "lineColor": "#dc2626",
+            "textColor": "#111827",
+            "lineWidth": 1.5,
+            "startArrow": false,
+            "endArrow": false
+          },
+          {
+            "id": "7b7b6520-0d69-47dd-8368-92fcf9f8c4e6",
+            "start": {
+              "x": 1017.6564006254295,
+              "y": 1030.9236252122319
+            },
+            "end": {
+              "x": 1020.5674870033673,
+              "y": 1213.461352457065
+            },
+            "measuredMm": 2581.042846852216,
+            "label": "150x100x10",
+            "displayText": "",
             "lineColor": "#dc2626",
             "textColor": "#111827",
             "lineWidth": 1.5,
