@@ -1210,6 +1210,15 @@ function DimensionLine({
           });
         }}
       >
+        <Rect
+          x={-totalLabelWidth / 2}
+          y={-segmentHeight / 2}
+          width={totalLabelWidth}
+          height={segmentHeight}
+          fill="#000000"
+          opacity={0}
+        />
+
         {hasLabel && (
           <>
             <Rect
@@ -1239,6 +1248,7 @@ function DimensionLine({
 
         {hasMeasurement && (
         <Rect
+          listening={false}
           x={
             -totalLabelWidth / 2 +
             (hasLabel
