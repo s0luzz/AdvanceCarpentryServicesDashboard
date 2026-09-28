@@ -799,7 +799,7 @@ export default function PdfEditorPage() {
 
     try {
       await exportMarkupPdf({
-        fileName: `${job?.name ?? "Job"} - Markup`,
+        fileName: `${job?.address || job?.name || "Job"} - Markup`,
         basePage,
         overlayPage,
         overlayTransform,
@@ -1036,8 +1036,8 @@ export default function PdfEditorPage() {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
-        <section className="relative min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-row">
+        <section className="relative min-h-0 min-w-0 flex-1">
           <AlignmentTool
             visible={tool === "align" && Boolean(overlayPage)}
             draft={alignmentDraft}

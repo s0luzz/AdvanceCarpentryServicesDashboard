@@ -5,7 +5,6 @@ import {
 } from "react";
 import Konva from "konva";
 import {
-  Arrow,
   Circle,
   Ellipse,
   Group,
@@ -801,23 +800,56 @@ export default function PdfEditorCanvas({
           )}
 
           {drawStart && hoverPoint && tool === "dimension" && (
-            <Arrow
-              listening={false}
-              points={[
-                drawStart.x,
-                drawStart.y,
-                hoverPoint.x,
-                hoverPoint.y,
-              ]}
-              stroke={markupStyle.dimensionLineColor}
-              fill={markupStyle.dimensionLineColor}
-              strokeWidth={markupStyle.dimensionLineWidth / viewScale}
-              pointerAtBeginning={markupStyle.dimensionStartArrow}
-              pointerAtEnding={markupStyle.dimensionEndArrow}
-              pointerLength={12 / viewScale}
-              pointerWidth={10 / viewScale}
-              dash={[10 / viewScale, 7 / viewScale]}
-            />
+            <>
+              <Line
+                listening={false}
+                points={[
+                  drawStart.x,
+                  drawStart.y,
+                  hoverPoint.x,
+                  hoverPoint.y,
+                ]}
+                stroke={markupStyle.dimensionLineColor}
+                strokeWidth={markupStyle.dimensionLineWidth / viewScale}
+                dash={[10 / viewScale, 7 / viewScale]}
+              />
+
+              {markupStyle.dimensionStartArrow && (
+                <Line
+                  listening={false}
+                  lineCap="round"
+                  lineJoin="round"
+                  points={chevronPoints(
+                    drawStart,
+                    Math.atan2(
+                      hoverPoint.y - drawStart.y,
+                      hoverPoint.x - drawStart.x,
+                    ) + Math.PI,
+                    12 / viewScale,
+                  )}
+                  stroke={markupStyle.dimensionLineColor}
+                  strokeWidth={markupStyle.dimensionLineWidth / viewScale}
+                />
+              )}
+
+              {markupStyle.dimensionEndArrow && (
+                <Line
+                  listening={false}
+                  lineCap="round"
+                  lineJoin="round"
+                  points={chevronPoints(
+                    hoverPoint,
+                    Math.atan2(
+                      hoverPoint.y - drawStart.y,
+                      hoverPoint.x - drawStart.x,
+                    ),
+                    12 / viewScale,
+                  )}
+                  stroke={markupStyle.dimensionLineColor}
+                  strokeWidth={markupStyle.dimensionLineWidth / viewScale}
+                />
+              )}
+            </>
           )}
 
           {drawStart && hoverPoint && isShapeTool(tool) && (
@@ -1052,6 +1084,22 @@ type DimensionLineProps = {
   labelOpacity: number;
 };
 
+// Open (line-style) arrowhead: two points either side of the tip, tip in the middle.
+function chevronPoints(
+  tip: Point,
+  headingAngle: number,
+  length: number,
+): number[] {
+  return [
+    tip.x - length * Math.cos(headingAngle - Math.PI / 7),
+    tip.y - length * Math.sin(headingAngle - Math.PI / 7),
+    tip.x,
+    tip.y,
+    tip.x - length * Math.cos(headingAngle + Math.PI / 7),
+    tip.y - length * Math.sin(headingAngle + Math.PI / 7),
+  ];
+}
+
 function DimensionLine({
   dimension,
   viewScale,
@@ -1077,6 +1125,8 @@ function DimensionLine({
   if (labelAngle < -90) labelAngle += 180;
 
   const tickHalf = 9 / viewScale;
+  const angle = Math.atan2(dy, dx);
+  const headLength = 12 / viewScale;
   const midpoint = {
     x: (dimension.start.x + dimension.end.x) / 2,
     y: (dimension.start.y + dimension.end.y) / 2,
@@ -1152,7 +1202,7 @@ function DimensionLine({
         />
       )}
 
-      <Arrow
+      <Line
         listening={false}
         points={[
           dimension.start.x,
@@ -1161,15 +1211,19 @@ function DimensionLine({
           dimension.end.y,
         ]}
         stroke={dimension.lineColor}
-        fill={dimension.lineColor}
         strokeWidth={lineWidth}
-        pointerAtBeginning={dimension.startArrow}
-        pointerAtEnding={dimension.endArrow}
-        pointerLength={12 / viewScale}
-        pointerWidth={10 / viewScale}
       />
 
-      {!dimension.startArrow && (
+      {dimension.startArrow ? (
+        <Line
+          listening={false}
+          lineCap="round"
+          lineJoin="round"
+          points={chevronPoints(dimension.start, angle + Math.PI, headLength)}
+          stroke={dimension.lineColor}
+          strokeWidth={lineWidth}
+        />
+      ) : (
         <Line
           listening={false}
           points={[
@@ -1183,7 +1237,16 @@ function DimensionLine({
         />
       )}
 
-      {!dimension.endArrow && (
+      {dimension.endArrow ? (
+        <Line
+          listening={false}
+          lineCap="round"
+          lineJoin="round"
+          points={chevronPoints(dimension.end, angle, headLength)}
+          stroke={dimension.lineColor}
+          strokeWidth={lineWidth}
+        />
+      ) : (
         <Line
           listening={false}
           points={[

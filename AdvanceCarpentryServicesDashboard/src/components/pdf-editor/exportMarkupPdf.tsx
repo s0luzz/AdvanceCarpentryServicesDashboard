@@ -95,18 +95,18 @@ function drawArrowHead(
   angle: number,
   length: number,
 ) {
+  // Open (line-style) arrowhead: two strokes meeting at the tip, no fill.
   context.beginPath();
-  context.moveTo(tip.x, tip.y);
-  context.lineTo(
+  context.moveTo(
     tip.x - length * Math.cos(angle - Math.PI / 7),
     tip.y - length * Math.sin(angle - Math.PI / 7),
   );
+  context.lineTo(tip.x, tip.y);
   context.lineTo(
     tip.x - length * Math.cos(angle + Math.PI / 7),
     tip.y - length * Math.sin(angle + Math.PI / 7),
   );
-  context.closePath();
-  context.fill();
+  context.stroke();
 }
 
 function drawDimension(
