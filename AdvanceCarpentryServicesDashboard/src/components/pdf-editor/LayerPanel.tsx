@@ -23,6 +23,7 @@ type LayerPanelProps = {
   onMarkupStyleChange: (next: MarkupStyle) => void;
   onClearCalibration: () => void;
   onClearDimensions: () => void;
+  onEditAllDimensions: () => void;
   onClearShapes: () => void;
 };
 
@@ -117,6 +118,7 @@ export default function LayerPanel({
   onMarkupStyleChange,
   onClearCalibration,
   onClearDimensions,
+  onEditAllDimensions,
   onClearShapes,
 }: LayerPanelProps) {
   function updateOverlay(
@@ -497,14 +499,25 @@ export default function LayerPanel({
               {dimensionCount} dimension{dimensionCount === 1 ? "" : "s"}
             </p>
 
-            <button
-              type="button"
-              disabled={dimensionCount === 0}
-              onClick={onClearDimensions}
-              className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Clear
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={dimensionCount === 0}
+                onClick={onEditAllDimensions}
+                className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Edit All
+              </button>
+
+              <button
+                type="button"
+                disabled={dimensionCount === 0}
+                onClick={onClearDimensions}
+                className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Clear
+              </button>
+            </div>
           </div>
         </section>
 

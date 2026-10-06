@@ -8,6 +8,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import AlignmentTool from "../components/pdf-editor/AlignmentTool";
 import CalibrationDialog from "../components/pdf-editor/CalibrationDialog";
 import DimensionDialog from "../components/pdf-editor/DimensionDialog";
+import GlobalDimensionEditDialog from "../components/pdf-editor/GlobalDimensionEditDialog";
 import LayerPanel from "../components/pdf-editor/LayerPanel";
 import PagePicker from "../components/pdf-editor/PagePicker";
 import PdfEditorCanvas from "../components/pdf-editor/PdfEditorCanvas";
@@ -320,6 +321,7 @@ export default function PdfEditorPage() {
   const [baseGrayscale, setBaseGrayscale] = useState(false);
   const [pendingDimension, setPendingDimension] =
     useState<PendingDimension | null>(null);
+  const [globalEditOpen, setGlobalEditOpen] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -1109,6 +1111,7 @@ export default function PdfEditorPage() {
             setTool("select");
           }}
           onClearDimensions={clearDimensions}
+          onEditAllDimensions={() => setGlobalEditOpen(true)}
           onClearShapes={clearShapes}
         />
       </div>
@@ -1148,6 +1151,31 @@ export default function PdfEditorPage() {
           setTool("select");
         }}
       />
+
+      {globalEditOpen && (
+        <GlobalDimensionEditDialog
+          dimensionCount={dimensions.length}
+          initial={{
+            lineWidth:
+              dimensions[0]?.lineWidth ?? markupStyle.dimensionLineWidth,
+            labelScale: markupStyle.labelScale,
+            labelOpacity: markupStyle.labelOpacity,
+          }}
+          onCancel={() => setGlobalEditOpen(false)}
+          onApply={({ lineWidth, labelScale, labelOpacity }) => {
+            setDimensions((current) =>
+              current.map((item) => ({ ...item, lineWidth })),
+            );
+            setMarkupStyle((current) => ({
+              ...current,
+              dimensionLineWidth: lineWidth,
+              labelScale,
+              labelOpacity,
+            }));
+            setGlobalEditOpen(false);
+          }}
+        />
+      )}
 
       <DimensionDialog
         open={Boolean(pendingDimension)}
