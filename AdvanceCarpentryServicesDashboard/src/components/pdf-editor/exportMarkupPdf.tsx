@@ -5,6 +5,7 @@ import type {
   RenderedPdfPage,
   ShapeMarkup,
 } from "./editorTypes";
+import { DEFAULT_MARKUP_STYLE } from "./editorTypes";
 
 type ExportMarkupPdfOptions = {
   fileName: string;
@@ -125,6 +126,8 @@ function drawDimension(
   const tickHalf = 9 * exportScale;
   const headLength = 14 * exportScale;
   const lineWidth = Math.max(dimension.lineWidth * exportScale, 1);
+  labelScale = dimension.labelScale ?? labelScale;
+  labelOpacity = dimension.labelOpacity ?? labelOpacity;
 
   context.save();
   context.strokeStyle = dimension.lineColor;
@@ -243,7 +246,9 @@ function drawDimension(
       (hasLabel ? labelWidth + segmentGap : 0);
 
     context.globalAlpha = labelOpacity;
-    context.fillStyle = "#fde047";
+    context.fillStyle =
+      dimension.highlightColor ??
+      DEFAULT_MARKUP_STYLE.dimensionHighlightColor;
     context.beginPath();
     context.roundRect(
       measurementX,

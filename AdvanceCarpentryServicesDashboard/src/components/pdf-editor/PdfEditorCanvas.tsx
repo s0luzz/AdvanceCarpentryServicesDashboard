@@ -28,6 +28,7 @@ import type {
   ShapeMarkup,
   ShapeType,
 } from "./editorTypes";
+import { DEFAULT_MARKUP_STYLE } from "./editorTypes";
 
 type PdfEditorCanvasProps = {
   basePage: RenderedPdfPage | null;
@@ -73,6 +74,8 @@ type PdfEditorCanvasProps = {
     start: Point,
     end: Point,
   ) => void;
+  selectedDimensionIds: string[];
+  onToggleDimensionSelection: (id: string) => void;
 };
 
 const MIN_VIEW_SCALE = 0.08;
@@ -192,6 +195,8 @@ export default function PdfEditorCanvas({
   dimensions,
   shapes,
   markupStyle,
+  selectedDimensionIds,
+  onToggleDimensionSelection,
   onOverlayTransformChange,
   onAlignmentDraftChange,
   onAlignmentComplete,
@@ -726,7 +731,11 @@ export default function PdfEditorCanvas({
           />
         </Layer>
 
-        <Layer listening={tool === "delete" || tool === "edit"}>
+        <Layer
+          listening={
+            tool === "delete" || tool === "edit" || tool === "select-lines"
+          }
+        >
           {shapes.map((shape) => (
             <ShapeOverlay
               key={shape.id}
@@ -779,8 +788,10 @@ export default function PdfEditorCanvas({
               onEditText={onEditDimensionText}
               onUpdatePoints={onUpdateDimensionPoints}
               onMoveLabel={onMoveDimensionLabel}
-              labelScale={markupStyle.labelScale}
-              labelOpacity={markupStyle.labelOpacity}
+              selected={selectedDimensionIds.includes(dimension.id)}
+              onToggleSelect={onToggleDimensionSelection}
+              labelScale={dimension.labelScale ?? markupStyle.labelScale}
+              labelOpacity={dimension.labelOpacity ?? markupStyle.labelOpacity}
             />
           ))}
 
@@ -1080,6 +1091,8 @@ type DimensionLineProps = {
   onEditText: (id: string) => void;
   onUpdatePoints: (id: string, start: Point, end: Point) => void;
   onMoveLabel: (id: string, offset: Point) => void;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
   labelScale: number;
   labelOpacity: number;
 };
@@ -1108,6 +1121,8 @@ function DimensionLine({
   onEditText,
   onUpdatePoints,
   onMoveLabel,
+  selected,
+  onToggleSelect,
   labelScale,
   labelOpacity,
 }: DimensionLineProps) {
@@ -1169,7 +1184,8 @@ function DimensionLine({
     x: defaultCenter.x + offset.x,
     y: defaultCenter.y + offset.y,
   };
-  const interactive = tool === "delete" || tool === "edit";
+  const interactive =
+    tool === "delete" || tool === "edit" || tool === "select-lines";
   const hitStrokeWidth = Math.max(lineWidth * 3, 14 / viewScale);
   const handleRadius = 6 / viewScale;
 
@@ -1180,11 +1196,29 @@ function DimensionLine({
       onDelete(dimension.id);
     } else if (tool === "edit") {
       onEditText(dimension.id);
+    } else if (tool === "select-lines") {
+      onToggleSelect(dimension.id);
     }
   }
 
   return (
     <Group>
+      {selected && tool === "select-lines" && (
+        <Line
+          listening={false}
+          points={[
+            dimension.start.x,
+            dimension.start.y,
+            dimension.end.x,
+            dimension.end.y,
+          ]}
+          stroke="#3b82f6"
+          opacity={0.35}
+          lineCap="round"
+          strokeWidth={Math.max(lineWidth * 4, 12 / viewScale)}
+        />
+      )}
+
       {interactive && (
         <Line
           points={[
@@ -1265,6 +1299,8 @@ function DimensionLine({
         y={labelCenter.y}
         rotation={labelAngle}
         draggable={tool === "edit"}
+        onClick={tool === "select-lines" ? handleBodyClick : undefined}
+        onTap={tool === "select-lines" ? handleBodyClick : undefined}
         onDragEnd={(event) => {
           event.cancelBubble = true;
           onMoveLabel(dimension.id, {
@@ -1322,7 +1358,10 @@ function DimensionLine({
           width={measurementSegmentWidth}
           height={segmentHeight}
           cornerRadius={3 / viewScale}
-          fill="#fde047"
+          fill={
+            dimension.highlightColor ??
+            DEFAULT_MARKUP_STYLE.dimensionHighlightColor
+          }
           opacity={labelOpacity}
         />
         )}

@@ -5,6 +5,7 @@ export type Point = {
 
 export type EditorTool =
   | "select"
+  | "select-lines"
   | "pan"
   | "align"
   | "calibrate"
@@ -46,6 +47,7 @@ export type EditorCalibration = {
 export type MarkupStyle = {
   dimensionLineColor: string;
   dimensionTextColor: string;
+  dimensionHighlightColor: string;
   dimensionLineWidth: number;
   dimensionStartArrow: boolean;
   dimensionEndArrow: boolean;
@@ -70,6 +72,10 @@ export type DimensionMarkup = {
   startArrow: boolean;
   endArrow: boolean;
   labelOffset?: Point;
+  // Optional per-dimension overrides; fall back to the page-wide markup style.
+  highlightColor?: string;
+  labelScale?: number;
+  labelOpacity?: number;
 };
 
 export type ShapeType = "rectangle" | "ellipse";
@@ -122,6 +128,7 @@ export const DEFAULT_OVERLAY_TRANSFORM: OverlayTransform = {
 export const DEFAULT_MARKUP_STYLE: MarkupStyle = {
   dimensionLineColor: "#0039b3",
   dimensionTextColor: "#0039b3",
+  dimensionHighlightColor: "#fde047",
   dimensionLineWidth: 1.5,
   dimensionStartArrow: false,
   dimensionEndArrow: false,

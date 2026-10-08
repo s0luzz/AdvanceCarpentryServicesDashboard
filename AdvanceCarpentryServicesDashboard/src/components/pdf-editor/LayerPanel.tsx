@@ -32,6 +32,7 @@ const COLOUR_PRESETS = [
   "#dc2626",
   "#16a34a",
   "#f59e0b",
+  "#fde047",
   "#7c3aed",
   "#111827",
   "#ffffff",
@@ -56,7 +57,7 @@ type ColourControlProps = {
   onChange: (value: string) => void;
 };
 
-function ColourControl({
+export function ColourControl({
   label,
   value,
   onChange,
@@ -389,6 +390,16 @@ export default function LayerPanel({
               onChange={(value) =>
                 updateMarkupStyle({
                   dimensionTextColor: value,
+                })
+              }
+            />
+
+            <ColourControl
+              label="Highlight colour"
+              value={markupStyle.dimensionHighlightColor}
+              onChange={(value) =>
+                updateMarkupStyle({
+                  dimensionHighlightColor: value,
                 })
               }
             />

@@ -1,12 +1,17 @@
 import { useState } from "react";
+import { ColourControl } from "./LayerPanel";
 
 export type GlobalDimensionEdit = {
+  lineColor: string;
+  textColor: string;
+  highlightColor: string;
   lineWidth: number;
   labelScale: number;
   labelOpacity: number;
 };
 
 type GlobalDimensionEditDialogProps = {
+  scope: "all" | "selected";
   dimensionCount: number;
   initial: GlobalDimensionEdit;
   onCancel: () => void;
@@ -19,13 +24,20 @@ const SLIDERS = [
   { key: "labelOpacity", title: "Highlight opacity", min: 0.3, max: 1, step: 0.05 },
 ] as const;
 
-function formatValue(key: keyof GlobalDimensionEdit, value: number) {
+const COLOURS = [
+  { key: "lineColor", title: "Line colour" },
+  { key: "textColor", title: "Measurement text colour" },
+  { key: "highlightColor", title: "Highlight colour" },
+] as const;
+
+function formatValue(key: (typeof SLIDERS)[number]["key"], value: number) {
   return key === "lineWidth"
     ? `${value.toFixed(1)} px`
     : `${Math.round(value * 100)}%`;
 }
 
 export default function GlobalDimensionEditDialog({
+  scope,
   dimensionCount,
   initial,
   onCancel,
@@ -43,9 +55,9 @@ export default function GlobalDimensionEditDialog({
         }
       }}
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <h2 className="text-lg font-semibold text-slate-900">
-          Edit All Dimensions
+          {scope === "all" ? "Edit All Dimensions" : "Edit Selected Dimensions"}
         </h2>
 
         <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
@@ -56,11 +68,26 @@ export default function GlobalDimensionEditDialog({
             {dimensionCount} dimension{dimensionCount === 1 ? "" : "s"}
           </p>
           <p className="mt-1 text-xs text-blue-600">
-            Changes apply to every dimension on this page and to new ones.
+            {scope === "all"
+              ? "Changes apply to every dimension on this page and to new ones."
+              : "Changes apply only to the dimensions you picked."}
           </p>
         </div>
 
-        <div className="mt-5 space-y-5">
+        <div className="mt-5 space-y-4">
+          {COLOURS.map(({ key, title }) => (
+            <ColourControl
+              key={key}
+              label={title}
+              value={values[key]}
+              onChange={(value) =>
+                setValues((current) => ({ ...current, [key]: value }))
+              }
+            />
+          ))}
+        </div>
+
+        <div className="mt-5 space-y-5 border-t border-slate-100 pt-5">
           {SLIDERS.map(({ key, title, min, max, step }) => (
             <div key={key}>
               <div className="flex items-center justify-between">
@@ -105,7 +132,7 @@ export default function GlobalDimensionEditDialog({
             onClick={() => onApply(values)}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
           >
-            Apply to All
+            {scope === "all" ? "Apply to All" : "Apply to Selected"}
           </button>
         </div>
       </div>

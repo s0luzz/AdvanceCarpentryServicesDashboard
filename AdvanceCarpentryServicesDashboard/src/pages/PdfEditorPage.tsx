@@ -9,6 +9,7 @@ import AlignmentTool from "../components/pdf-editor/AlignmentTool";
 import CalibrationDialog from "../components/pdf-editor/CalibrationDialog";
 import DimensionDialog from "../components/pdf-editor/DimensionDialog";
 import GlobalDimensionEditDialog from "../components/pdf-editor/GlobalDimensionEditDialog";
+import type { GlobalDimensionEdit } from "../components/pdf-editor/GlobalDimensionEditDialog";
 import LayerPanel from "../components/pdf-editor/LayerPanel";
 import PagePicker from "../components/pdf-editor/PagePicker";
 import PdfEditorCanvas from "../components/pdf-editor/PdfEditorCanvas";
@@ -141,6 +142,16 @@ function normaliseDimension(value: unknown): DimensionMarkup | null {
         ? dimension.endArrow
         : DEFAULT_MARKUP_STYLE.dimensionEndArrow,
     labelOffset: dimension.labelOffset,
+    highlightColor:
+      typeof dimension.highlightColor === "string"
+        ? dimension.highlightColor
+        : undefined,
+    labelScale: Number.isFinite(dimension.labelScale)
+      ? dimension.labelScale
+      : undefined,
+    labelOpacity: Number.isFinite(dimension.labelOpacity)
+      ? dimension.labelOpacity
+      : undefined,
   };
 }
 
@@ -321,7 +332,12 @@ export default function PdfEditorPage() {
   const [baseGrayscale, setBaseGrayscale] = useState(false);
   const [pendingDimension, setPendingDimension] =
     useState<PendingDimension | null>(null);
-  const [globalEditOpen, setGlobalEditOpen] = useState(false);
+  const [selectedDimensionIds, setSelectedDimensionIds] = useState<
+    string[]
+  >([]);
+  const [dimensionEditScope, setDimensionEditScope] = useState<
+    "all" | "selected" | null
+  >(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -712,6 +728,55 @@ export default function PdfEditorPage() {
     setShapes([]);
   }
 
+  // Ignore ids of dimensions that have since been deleted or undone.
+  const selectedDimensions = dimensions.filter((item) =>
+    selectedDimensionIds.includes(item.id),
+  );
+  const dimensionEditTargets =
+    dimensionEditScope === "selected" ? selectedDimensions : dimensions;
+
+  function toggleDimensionSelection(id: string) {
+    setSelectedDimensionIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  }
+
+  function applyDimensionEdit(edit: GlobalDimensionEdit) {
+    const { lineColor, textColor, highlightColor, lineWidth } = edit;
+
+    if (dimensionEditScope === "all") {
+      // Page-wide label size/opacity now come from the markup style, so
+      // drop any per-dimension overrides left by earlier selected edits.
+      setDimensions((current) =>
+        current.map((item) => {
+          const rest = { ...item };
+          delete rest.labelScale;
+          delete rest.labelOpacity;
+          return { ...rest, lineColor, textColor, highlightColor, lineWidth };
+        }),
+      );
+      setMarkupStyle((current) => ({
+        ...current,
+        dimensionLineColor: lineColor,
+        dimensionTextColor: textColor,
+        dimensionHighlightColor: highlightColor,
+        dimensionLineWidth: lineWidth,
+        labelScale: edit.labelScale,
+        labelOpacity: edit.labelOpacity,
+      }));
+    } else {
+      setDimensions((current) =>
+        current.map((item) =>
+          selectedDimensionIds.includes(item.id) ? { ...item, ...edit } : item,
+        ),
+      );
+    }
+
+    setDimensionEditScope(null);
+  }
+
   function undoLastDimension() {
     setDimensions((current) => current.slice(0, -1));
   }
@@ -909,6 +974,12 @@ export default function PdfEditorPage() {
       activeClass: "bg-rose-600 text-white",
     },
     {
+      id: "select-lines",
+      label: "Select Lines",
+      disabled: !basePage || dimensions.length === 0,
+      activeClass: "bg-sky-600 text-white",
+    },
+    {
       id: "edit",
       label: "Edit",
       disabled: !basePage,
@@ -977,6 +1048,10 @@ export default function PdfEditorPage() {
             disabled={item.disabled}
             onClick={() => {
               setTool(item.id);
+
+              if (item.id !== "select-lines") {
+                setSelectedDimensionIds([]);
+              }
 
               if (item.id === "align") {
                 setAlignmentDraft({});
@@ -1085,7 +1160,53 @@ export default function PdfEditorPage() {
             baseGrayscale={baseGrayscale}
             onToggleGrayscale={() => setBaseGrayscale((v) => !v)}
             onUpdateShapePoints={updateShapePoints}
+            selectedDimensionIds={selectedDimensionIds}
+            onToggleDimensionSelection={toggleDimensionSelection}
           />
+
+          {tool === "select-lines" && (
+            <div className="absolute left-1/2 top-4 z-30 flex w-[min(560px,calc(100%-32px))] -translate-x-1/2 flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-600">
+                  Select lines · {selectedDimensions.length} of{" "}
+                  {dimensions.length}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Click dimensions to add or remove them.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedDimensionIds(dimensions.map((item) => item.id))
+                  }
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Select All
+                </button>
+
+                <button
+                  type="button"
+                  disabled={selectedDimensions.length === 0}
+                  onClick={() => setSelectedDimensionIds([])}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Clear
+                </button>
+
+                <button
+                  type="button"
+                  disabled={selectedDimensions.length === 0}
+                  onClick={() => setDimensionEditScope("selected")}
+                  className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Edit Selected
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         <LayerPanel
@@ -1111,7 +1232,7 @@ export default function PdfEditorPage() {
             setTool("select");
           }}
           onClearDimensions={clearDimensions}
-          onEditAllDimensions={() => setGlobalEditOpen(true)}
+          onEditAllDimensions={() => setDimensionEditScope("all")}
           onClearShapes={clearShapes}
         />
       </div>
@@ -1152,28 +1273,31 @@ export default function PdfEditorPage() {
         }}
       />
 
-      {globalEditOpen && (
+      {dimensionEditScope && (
         <GlobalDimensionEditDialog
-          dimensionCount={dimensions.length}
+          scope={dimensionEditScope}
+          dimensionCount={dimensionEditTargets.length}
           initial={{
+            lineColor:
+              dimensionEditTargets[0]?.lineColor ??
+              markupStyle.dimensionLineColor,
+            textColor:
+              dimensionEditTargets[0]?.textColor ??
+              markupStyle.dimensionTextColor,
+            highlightColor:
+              dimensionEditTargets[0]?.highlightColor ??
+              markupStyle.dimensionHighlightColor,
             lineWidth:
-              dimensions[0]?.lineWidth ?? markupStyle.dimensionLineWidth,
-            labelScale: markupStyle.labelScale,
-            labelOpacity: markupStyle.labelOpacity,
+              dimensionEditTargets[0]?.lineWidth ??
+              markupStyle.dimensionLineWidth,
+            labelScale:
+              dimensionEditTargets[0]?.labelScale ?? markupStyle.labelScale,
+            labelOpacity:
+              dimensionEditTargets[0]?.labelOpacity ??
+              markupStyle.labelOpacity,
           }}
-          onCancel={() => setGlobalEditOpen(false)}
-          onApply={({ lineWidth, labelScale, labelOpacity }) => {
-            setDimensions((current) =>
-              current.map((item) => ({ ...item, lineWidth })),
-            );
-            setMarkupStyle((current) => ({
-              ...current,
-              dimensionLineWidth: lineWidth,
-              labelScale,
-              labelOpacity,
-            }));
-            setGlobalEditOpen(false);
-          }}
+          onCancel={() => setDimensionEditScope(null)}
+          onApply={applyDimensionEdit}
         />
       )}
 
@@ -1230,6 +1354,7 @@ export default function PdfEditorPage() {
                 displayText,
                 lineColor: markupStyle.dimensionLineColor,
                 textColor: markupStyle.dimensionTextColor,
+                highlightColor: markupStyle.dimensionHighlightColor,
                 lineWidth: markupStyle.dimensionLineWidth,
                 startArrow: markupStyle.dimensionStartArrow,
                 endArrow: markupStyle.dimensionEndArrow,
