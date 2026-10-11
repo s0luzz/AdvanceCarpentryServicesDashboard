@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router";
 
 type SidebarItem = {
@@ -75,6 +76,24 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 function Sidebar() {
+    const [dark, setDark] = useState(() => {
+        try {
+            return localStorage.getItem("theme") === "dark";
+        } catch {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        document.documentElement.classList.toggle("dark", dark);
+
+        try {
+            localStorage.setItem("theme", dark ? "dark" : "light");
+        } catch {
+            // Storage unavailable; the toggle still works for this session.
+        }
+    }, [dark]);
+
     return (
         <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
             <div className="flex h-24 items-center border-b border-gray-200 px-6">
@@ -112,9 +131,21 @@ function Sidebar() {
                 ))}
             </nav>
 
-            <div className="border-t border-gray-200 px-4 py-4">
-                <p className="text-sm font-semibold text-gray-900">Raphael</p>
-                <p className="text-xs text-gray-500">Administrator</p>
+            <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-4 py-4">
+                <div>
+                    <p className="text-sm font-semibold text-gray-900">Raphael</p>
+                    <p className="text-xs text-gray-500">Administrator</p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => setDark((value) => !value)}
+                    aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+                    title={dark ? "Light mode" : "Dark mode"}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 text-base hover:bg-gray-100"
+                >
+                    {dark ? "☀️" : "🌙"}
+                </button>
             </div>
         </aside>
     );

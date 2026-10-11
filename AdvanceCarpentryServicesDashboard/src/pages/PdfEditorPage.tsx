@@ -17,6 +17,7 @@ import { exportMarkupPdf } from "../components/pdf-editor/exportMarkupPdf";
 import type {
   AlignmentDraft,
   DimensionMarkup,
+  DimensionStyleValues,
   EditorCalibration,
   EditorPdfFile,
   EditorTool,
@@ -233,10 +234,17 @@ function parseEditorState(value: unknown): SavedPdfMarkupEditor {
         }
       : cloneDefaultMarkupStyle();
 
+  // Label size/opacity used to follow the page-wide style. Freeze what each
+  // existing dimension currently shows so the panel sliders can't change it.
   const dimensions = Array.isArray(saved.dimensions)
     ? saved.dimensions
         .map(normaliseDimension)
         .filter((item): item is DimensionMarkup => Boolean(item))
+        .map((item) => ({
+          ...item,
+          labelScale: item.labelScale ?? markupStyle.labelScale,
+          labelOpacity: item.labelOpacity ?? markupStyle.labelOpacity,
+        }))
     : [];
 
   const shapes = Array.isArray(saved.shapes)
@@ -735,6 +743,33 @@ export default function PdfEditorPage() {
   const dimensionEditTargets =
     dimensionEditScope === "selected" ? selectedDimensions : dimensions;
 
+  const selectedStyle: DimensionStyleValues | null = selectedDimensions[0]
+    ? {
+        lineColor: selectedDimensions[0].lineColor,
+        textColor: selectedDimensions[0].textColor,
+        highlightColor:
+          selectedDimensions[0].highlightColor ??
+          markupStyle.dimensionHighlightColor,
+        lineWidth: selectedDimensions[0].lineWidth,
+        labelScale:
+          selectedDimensions[0].labelScale ?? markupStyle.labelScale,
+        labelOpacity:
+          selectedDimensions[0].labelOpacity ?? markupStyle.labelOpacity,
+      }
+    : null;
+
+  function updateSelectedDimensionStyle(
+    patch: Partial<DimensionStyleValues>,
+  ) {
+    setDimensions((current) =>
+      current.map((item) =>
+        selectedDimensionIds.includes(item.id)
+          ? { ...item, ...patch }
+          : item,
+      ),
+    );
+  }
+
   function toggleDimensionSelection(id: string) {
     setSelectedDimensionIds((current) =>
       current.includes(id)
@@ -747,15 +782,16 @@ export default function PdfEditorPage() {
     const { lineColor, textColor, highlightColor, lineWidth } = edit;
 
     if (dimensionEditScope === "all") {
-      // Page-wide label size/opacity now come from the markup style, so
-      // drop any per-dimension overrides left by earlier selected edits.
       setDimensions((current) =>
-        current.map((item) => {
-          const rest = { ...item };
-          delete rest.labelScale;
-          delete rest.labelOpacity;
-          return { ...rest, lineColor, textColor, highlightColor, lineWidth };
-        }),
+        current.map((item) => ({
+          ...item,
+          lineColor,
+          textColor,
+          highlightColor,
+          lineWidth,
+          labelScale: edit.labelScale,
+          labelOpacity: edit.labelOpacity,
+        })),
       );
       setMarkupStyle((current) => ({
         ...current,
@@ -1233,6 +1269,9 @@ export default function PdfEditorPage() {
           }}
           onClearDimensions={clearDimensions}
           onEditAllDimensions={() => setDimensionEditScope("all")}
+          selectedCount={selectedDimensions.length}
+          selectedStyle={selectedStyle}
+          onSelectedStyleChange={updateSelectedDimensionStyle}
           onClearShapes={clearShapes}
         />
       </div>
@@ -1356,6 +1395,8 @@ export default function PdfEditorPage() {
                 textColor: markupStyle.dimensionTextColor,
                 highlightColor: markupStyle.dimensionHighlightColor,
                 lineWidth: markupStyle.dimensionLineWidth,
+                labelScale: markupStyle.labelScale,
+                labelOpacity: markupStyle.labelOpacity,
                 startArrow: markupStyle.dimensionStartArrow,
                 endArrow: markupStyle.dimensionEndArrow,
               },

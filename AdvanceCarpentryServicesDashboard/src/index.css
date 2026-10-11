@@ -1,1 +1,66 @@
 @import "tailwindcss";
+
+/*
+ * Dark mode (toggle in the sidebar). Remaps the neutral palette only; PDF
+ * canvases and markup colours use inline hex values, so they are untouched.
+ * Light surfaces/borders/muted text (50-600) are flipped via the theme
+ * variables; strong text (700+) and a few solid-colour utilities are
+ * overridden below because the same shades are also used for dark buttons.
+ */
+.dark {
+  color-scheme: dark;
+
+  --color-gray-50: #0b1220;
+  --color-gray-100: #1f2937;
+  --color-gray-200: #273449;
+  --color-gray-300: #3b4a63;
+  --color-gray-400: #64748b;
+  --color-gray-500: #94a3b8;
+  --color-gray-600: #cbd5e1;
+
+  --color-slate-50: #0b1220;
+  --color-slate-100: #1f2937;
+  --color-slate-200: #273449;
+  --color-slate-300: #3b4a63;
+  --color-slate-400: #64748b;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+}
+
+.dark body {
+  background-color: #0b1220;
+  color: #e5e7eb;
+}
+
+.dark .bg-white,
+.dark [class*="bg-white/"] {
+  background-color: #111827;
+}
+
+.dark .text-gray-700,
+.dark .text-gray-800,
+.dark .text-slate-700,
+.dark .text-slate-800 {
+  color: #e5e7eb;
+}
+
+.dark .text-gray-900,
+.dark .text-gray-950,
+.dark .text-slate-900,
+.dark .hover\:text-gray-950:hover {
+  color: #f3f4f6;
+}
+
+.dark .border-gray-900,
+.dark .border-slate-900,
+.dark .ring-gray-900,
+.dark .ring-slate-900 {
+  border-color: #e5e7eb;
+  --tw-ring-color: #e5e7eb;
+}
+
+/* Dark solid buttons (text-white) sit on a dark UI; lift them slightly. */
+.dark .bg-gray-900,
+.dark .bg-slate-900 {
+  background-color: #334155;
+}

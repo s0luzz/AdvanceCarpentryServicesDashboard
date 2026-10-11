@@ -1,4 +1,5 @@
 import type {
+  DimensionStyleValues,
   EditorCalibration,
   EditorPdfFile,
   MarkupStyle,
@@ -25,6 +26,12 @@ type LayerPanelProps = {
   onClearDimensions: () => void;
   onEditAllDimensions: () => void;
   onClearShapes: () => void;
+  // Selected dimensions (Select Lines tool). While any are selected the
+  // Dimension Style controls edit just those; otherwise they only set the
+  // style used for dimensions drawn from now on.
+  selectedCount: number;
+  selectedStyle: DimensionStyleValues | null;
+  onSelectedStyleChange: (patch: Partial<DimensionStyleValues>) => void;
 };
 
 const COLOUR_PRESETS = [
@@ -121,6 +128,9 @@ export default function LayerPanel({
   onClearDimensions,
   onEditAllDimensions,
   onClearShapes,
+  selectedCount,
+  selectedStyle,
+  onSelectedStyleChange,
 }: LayerPanelProps) {
   function updateOverlay(
     patch: Partial<OverlayTransform>,
@@ -137,6 +147,47 @@ export default function LayerPanel({
     onMarkupStyleChange({
       ...markupStyle,
       ...patch,
+    });
+  }
+
+  const editingSelection = selectedCount > 0 && selectedStyle !== null;
+  const dimensionStyle: DimensionStyleValues =
+    editingSelection && selectedStyle
+      ? selectedStyle
+      : {
+          lineColor: markupStyle.dimensionLineColor,
+          textColor: markupStyle.dimensionTextColor,
+          highlightColor: markupStyle.dimensionHighlightColor,
+          lineWidth: markupStyle.dimensionLineWidth,
+          labelScale: markupStyle.labelScale,
+          labelOpacity: markupStyle.labelOpacity,
+        };
+
+  function updateDimensionStyle(patch: Partial<DimensionStyleValues>) {
+    if (editingSelection) {
+      onSelectedStyleChange(patch);
+      return;
+    }
+
+    updateMarkupStyle({
+      ...(patch.lineColor !== undefined && {
+        dimensionLineColor: patch.lineColor,
+      }),
+      ...(patch.textColor !== undefined && {
+        dimensionTextColor: patch.textColor,
+      }),
+      ...(patch.highlightColor !== undefined && {
+        dimensionHighlightColor: patch.highlightColor,
+      }),
+      ...(patch.lineWidth !== undefined && {
+        dimensionLineWidth: patch.lineWidth,
+      }),
+      ...(patch.labelScale !== undefined && {
+        labelScale: patch.labelScale,
+      }),
+      ...(patch.labelOpacity !== undefined && {
+        labelOpacity: patch.labelOpacity,
+      }),
     });
   }
 
@@ -373,34 +424,40 @@ export default function LayerPanel({
             Dimension Style
           </p>
 
+          <p
+            className={`mt-2 rounded-lg px-3 py-2 text-xs ${
+              editingSelection
+                ? "bg-sky-50 font-medium text-sky-700"
+                : "bg-slate-50 text-slate-500"
+            }`}
+          >
+            {editingSelection
+              ? `Editing ${selectedCount} selected line${selectedCount === 1 ? "" : "s"}. Nothing else changes.`
+              : "These set the style for new dimensions only. To restyle existing ones, pick Select Lines and click them first."}
+          </p>
+
           <div className="mt-4 space-y-4">
             <ColourControl
               label="Line / label colour"
-              value={markupStyle.dimensionLineColor}
+              value={dimensionStyle.lineColor}
               onChange={(value) =>
-                updateMarkupStyle({
-                  dimensionLineColor: value,
-                })
+                updateDimensionStyle({ lineColor: value })
               }
             />
 
             <ColourControl
               label="Text colour"
-              value={markupStyle.dimensionTextColor}
+              value={dimensionStyle.textColor}
               onChange={(value) =>
-                updateMarkupStyle({
-                  dimensionTextColor: value,
-                })
+                updateDimensionStyle({ textColor: value })
               }
             />
 
             <ColourControl
               label="Highlight colour"
-              value={markupStyle.dimensionHighlightColor}
+              value={dimensionStyle.highlightColor}
               onChange={(value) =>
-                updateMarkupStyle({
-                  dimensionHighlightColor: value,
-                })
+                updateDimensionStyle({ highlightColor: value })
               }
             />
 
@@ -410,7 +467,7 @@ export default function LayerPanel({
                   Line thickness
                 </label>
                 <span className="text-xs font-semibold text-slate-700">
-                  {markupStyle.dimensionLineWidth.toFixed(1)} px
+                  {dimensionStyle.lineWidth.toFixed(1)} px
                 </span>
               </div>
 
@@ -419,10 +476,10 @@ export default function LayerPanel({
                 min="1"
                 max="8"
                 step="0.5"
-                value={markupStyle.dimensionLineWidth}
+                value={dimensionStyle.lineWidth}
                 onChange={(event) =>
-                  updateMarkupStyle({
-                    dimensionLineWidth: Number(event.target.value),
+                  updateDimensionStyle({
+                    lineWidth: Number(event.target.value),
                   })
                 }
                 className="mt-2 w-full"
@@ -439,7 +496,7 @@ export default function LayerPanel({
                     {title}
                   </label>
                   <span className="text-xs font-semibold text-slate-700">
-                    {Math.round(markupStyle[key] * 100)}%
+                    {Math.round(dimensionStyle[key] * 100)}%
                   </span>
                 </div>
 
@@ -448,9 +505,9 @@ export default function LayerPanel({
                   min={min}
                   max={max}
                   step={step}
-                  value={markupStyle[key]}
+                  value={dimensionStyle[key]}
                   onChange={(event) =>
-                    updateMarkupStyle({ [key]: Number(event.target.value) })
+                    updateDimensionStyle({ [key]: Number(event.target.value) })
                   }
                   className="mt-2 w-full"
                 />

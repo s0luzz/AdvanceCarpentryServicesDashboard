@@ -44,6 +44,16 @@ export type EditorCalibration = {
   mmPerPixel: number;
 };
 
+// The per-dimension style a user can change (panel controls / edit dialogs).
+export type DimensionStyleValues = {
+  lineColor: string;
+  textColor: string;
+  highlightColor: string;
+  lineWidth: number;
+  labelScale: number;
+  labelOpacity: number;
+};
+
 export type MarkupStyle = {
   dimensionLineColor: string;
   dimensionTextColor: string;

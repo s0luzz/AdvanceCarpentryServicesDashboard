@@ -171,6 +171,18 @@ async function readDb() {
             parsedData.scalePresets = [];
         }
 
+        if (
+            !Array.isArray(
+                parsedData.scheduleEntries,
+            )
+        ) {
+            parsedData.scheduleEntries = [];
+        }
+
+        if (!Array.isArray(parsedData.todos)) {
+            parsedData.todos = [];
+        }
+
         return parsedData;
     } catch (error) {
         if (error.code === "ENOENT") {
@@ -182,6 +194,8 @@ async function readDb() {
                 },
                 beamTypes: [],
                 scalePresets: [],
+                scheduleEntries: [],
+                todos: [],
             };
 
             await writeDb(initialDb);
@@ -1641,6 +1655,13 @@ app.delete(
                         req.params.id,
                 );
 
+            db.scheduleEntries =
+                db.scheduleEntries.filter(
+                    (entry) =>
+                        entry.jobId !==
+                        req.params.id,
+                );
+
             await writeDb(db);
 
             if (
@@ -1686,6 +1707,397 @@ app.delete(
         }
     },
 );
+
+/**
+ * Schedule: one entry = one row on the schedule = one block of
+ * consecutive working days (Mon-Sat) for a job. Dates are local
+ * "YYYY-MM-DD" strings so there is no timezone drift.
+ */
+function isValidScheduleDate(value) {
+    if (
+        typeof value !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(
+            value,
+        )
+    ) {
+        return false;
+    }
+
+    const [year, month, day] =
+        value.split("-").map(Number);
+    const date = new Date(
+        year,
+        month - 1,
+        day,
+    );
+
+    // Real calendar date, and never a Sunday (schedule skips Sundays).
+    return (
+        date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day &&
+        date.getDay() !== 0
+    );
+}
+
+function validateScheduleDates(
+    start,
+    end,
+) {
+    if (
+        !isValidScheduleDate(start) ||
+        !isValidScheduleDate(end)
+    ) {
+        return "Start and end must be valid YYYY-MM-DD dates that are not Sundays.";
+    }
+
+    if (end < start) {
+        return "End date cannot be before the start date.";
+    }
+
+    return null;
+}
+
+app.get(
+    "/api/schedule",
+    async (_req, res) => {
+        try {
+            const db =
+                await readDb();
+
+            return res.json(
+                db.scheduleEntries,
+            );
+        } catch (error) {
+            console.error(
+                "Failed to load schedule:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to load schedule",
+                });
+        }
+    },
+);
+
+app.post(
+    "/api/schedule",
+    async (req, res) => {
+        try {
+            const db =
+                await readDb();
+
+            const { jobId, start, end } =
+                req.body;
+
+            if (
+                !db.quotedJobs.some(
+                    (job) =>
+                        job.id === jobId,
+                )
+            ) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Job not found",
+                    });
+            }
+
+            const dateError =
+                validateScheduleDates(
+                    start,
+                    end,
+                );
+
+            if (dateError) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            dateError,
+                    });
+            }
+
+            const entry = {
+                id: crypto.randomUUID(),
+                jobId,
+                start,
+                end,
+            };
+
+            db.scheduleEntries.push(
+                entry,
+            );
+
+            await writeDb(db);
+
+            return res
+                .status(201)
+                .json(entry);
+        } catch (error) {
+            console.error(
+                "Failed to create schedule entry:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to create schedule entry",
+                });
+        }
+    },
+);
+
+app.patch(
+    "/api/schedule/:id",
+    async (req, res) => {
+        try {
+            const db =
+                await readDb();
+
+            const entry =
+                db.scheduleEntries.find(
+                    (item) =>
+                        item.id ===
+                        req.params.id,
+                );
+
+            if (!entry) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Schedule entry not found",
+                    });
+            }
+
+            const start =
+                req.body.start ??
+                entry.start;
+            const end =
+                req.body.end ??
+                entry.end;
+
+            const dateError =
+                validateScheduleDates(
+                    start,
+                    end,
+                );
+
+            if (dateError) {
+                return res
+                    .status(400)
+                    .json({
+                        message:
+                            dateError,
+                    });
+            }
+
+            entry.start = start;
+            entry.end = end;
+
+            await writeDb(db);
+
+            return res.json(entry);
+        } catch (error) {
+            console.error(
+                "Failed to update schedule entry:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to update schedule entry",
+                });
+        }
+    },
+);
+
+app.delete(
+    "/api/schedule/:id",
+    async (req, res) => {
+        try {
+            const db =
+                await readDb();
+
+            const before =
+                db.scheduleEntries
+                    .length;
+
+            db.scheduleEntries =
+                db.scheduleEntries.filter(
+                    (item) =>
+                        item.id !==
+                        req.params.id,
+                );
+
+            if (
+                db.scheduleEntries
+                    .length === before
+            ) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Schedule entry not found",
+                    });
+            }
+
+            await writeDb(db);
+
+            return res.json({
+                message:
+                    "Schedule entry deleted",
+            });
+        } catch (error) {
+            console.error(
+                "Failed to delete schedule entry:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to delete schedule entry",
+                });
+        }
+    },
+);
+
+/**
+ * Quick to-do list shown on the dashboard.
+ */
+app.get("/api/todos", async (_req, res) => {
+    try {
+        const db = await readDb();
+
+        return res.json(db.todos);
+    } catch (error) {
+        console.error("Failed to load todos:", error);
+
+        return res
+            .status(500)
+            .json({ message: "Failed to load todos" });
+    }
+});
+
+app.post("/api/todos", async (req, res) => {
+    try {
+        const text =
+            typeof req.body.text === "string"
+                ? req.body.text.trim()
+                : "";
+
+        if (!text) {
+            return res
+                .status(400)
+                .json({ message: "Todo text is required" });
+        }
+
+        const db = await readDb();
+        const todo = {
+            id: crypto.randomUUID(),
+            text,
+            done: false,
+            createdAt: new Date().toISOString(),
+        };
+
+        db.todos.push(todo);
+        await writeDb(db);
+
+        return res.status(201).json(todo);
+    } catch (error) {
+        console.error("Failed to create todo:", error);
+
+        return res
+            .status(500)
+            .json({ message: "Failed to create todo" });
+    }
+});
+
+app.patch("/api/todos/:id", async (req, res) => {
+    try {
+        const db = await readDb();
+        const todo = db.todos.find(
+            (item) => item.id === req.params.id,
+        );
+
+        if (!todo) {
+            return res
+                .status(404)
+                .json({ message: "Todo not found" });
+        }
+
+        if (typeof req.body.done === "boolean") {
+            todo.done = req.body.done;
+        }
+
+        await writeDb(db);
+
+        return res.json(todo);
+    } catch (error) {
+        console.error("Failed to update todo:", error);
+
+        return res
+            .status(500)
+            .json({ message: "Failed to update todo" });
+    }
+});
+
+// DELETE /api/todos/:id removes one; DELETE /api/todos clears all finished ones.
+app.delete("/api/todos/:id", async (req, res) => {
+    try {
+        const db = await readDb();
+        const before = db.todos.length;
+
+        db.todos = db.todos.filter(
+            (item) => item.id !== req.params.id,
+        );
+
+        if (db.todos.length === before) {
+            return res
+                .status(404)
+                .json({ message: "Todo not found" });
+        }
+
+        await writeDb(db);
+
+        return res.json({ message: "Todo deleted" });
+    } catch (error) {
+        console.error("Failed to delete todo:", error);
+
+        return res
+            .status(500)
+            .json({ message: "Failed to delete todo" });
+    }
+});
+
+app.delete("/api/todos", async (_req, res) => {
+    try {
+        const db = await readDb();
+
+        db.todos = db.todos.filter((item) => !item.done);
+        await writeDb(db);
+
+        return res.json(db.todos);
+    } catch (error) {
+        console.error("Failed to clear todos:", error);
+
+        return res
+            .status(500)
+            .json({ message: "Failed to clear todos" });
+    }
+});
 
 /**
  * Multer and general errors

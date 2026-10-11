@@ -34,6 +34,10 @@ const STATUS_FILTERS: Array<QuoteStatus | "All"> = [
     "Complete",
 ];
 
+const JOB_STATUSES = STATUS_FILTERS.filter(
+    (status): status is QuoteStatus => status !== "All",
+);
+
 export default function JobsPage() {
     const [quotedJobs, setQuotedJobs] = useState<QuotedJob[]>([]);
     const [loading, setLoading] = useState(true);
@@ -283,6 +287,53 @@ export default function JobsPage() {
         }
     }
 
+    async function handleStatusChange(
+        id: string,
+        status: QuoteStatus,
+    ) {
+        const previous = quotedJobs.find(
+            (job) => job.id === id,
+        )?.status;
+
+        const setStatus = (value?: string) =>
+            setQuotedJobs((current) =>
+                current.map((job) =>
+                    job.id === id
+                        ? { ...job, status: value }
+                        : job,
+                ),
+            );
+
+        setStatus(status);
+
+        try {
+            const response = await fetch(
+                `http://localhost:3001/api/quoted-jobs/${id}`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                    },
+                    body: JSON.stringify({ status }),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Failed to update status",
+                );
+            }
+        } catch (error) {
+            console.error(
+                "Failed to update status:",
+                error,
+            );
+            setStatus(previous);
+            window.alert("Failed to update status.");
+        }
+    }
+
     async function handleDeleteQuote(
         id: string,
     ) {
@@ -507,10 +558,32 @@ export default function JobsPage() {
                                     </td>
 
                                     <td className="px-6 py-4">
-                                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                                            {job.status ??
-                                                "Quoted"}
-                                        </span>
+                                        <select
+                                            value={
+                                                job.status ??
+                                                "Quoted"
+                                            }
+                                            onChange={(event) =>
+                                                void handleStatusChange(
+                                                    job.id,
+                                                    event.target
+                                                        .value as QuoteStatus,
+                                                )
+                                            }
+                                            aria-label={`Status for ${job.name}`}
+                                            className="cursor-pointer rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                        >
+                                            {JOB_STATUSES.map(
+                                                (status) => (
+                                                    <option
+                                                        key={status}
+                                                        value={status}
+                                                    >
+                                                        {status}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
                                     </td>
 
                                     <td className="px-6 py-4">
