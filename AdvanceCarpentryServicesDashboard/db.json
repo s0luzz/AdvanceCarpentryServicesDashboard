@@ -102,10 +102,10 @@
       "inclGst": 58466.9947056009,
       "wallsRoofRate": 75,
       "floorRate": 150,
-      "ffw": 92,
-      "gfw": 88,
-      "floor": 120,
-      "roof": 167,
+      "ffw": 91.6100076660573,
+      "gfw": 87.2913975674419,
+      "floor": 118.36962185330111,
+      "roof": 166.17347341625523,
       "additionalCost": 0,
       "steel": 9126.813368728086,
       "hasSecondFloor": true,
@@ -141,8 +141,206 @@
         }
       ],
       "date": "2026-10-08T23:23:09.543Z",
-      "updatedAt": "2026-10-09T00:55:11.934Z",
+      "updatedAt": "2026-10-12T00:25:35.985Z",
       "takeoffByFile": {
+        "f8e72c09-7d30-4793-919d-8a46e5c74b92": {
+          "mode": "structural",
+          "calibrations": {
+            "1": {
+              "pageNumber": 1,
+              "primaryAxis": {
+                "start": {
+                  "x": 0.15564304461942258,
+                  "y": 0.2943578322197476
+                },
+                "end": {
+                  "x": 0.6118110236220472,
+                  "y": 0.2943578322197476
+                },
+                "realDistanceMm": 19125,
+                "pageSpaceLength": 0.6451373422420192,
+                "unitVector": {
+                  "x": 1,
+                  "y": 0
+                },
+                "mmPerPageUnit": 29644.850402761796
+              },
+              "secondaryAxis": {
+                "start": {
+                  "x": 0.6963254593175853,
+                  "y": 0.38047512991833704
+                },
+                "end": {
+                  "x": 0.6963254593175853,
+                  "y": 0.6826280623608018
+                },
+                "realDistanceMm": 8950,
+                "pageSpaceLength": 0.3021529324424647,
+                "unitVector": {
+                  "x": 0,
+                  "y": 1
+                },
+                "mmPerPageUnit": 29620.761670761673
+              }
+            },
+            "8": {
+              "pageNumber": 8,
+              "primaryAxis": {
+                "start": {
+                  "x": 0.15564304461942258,
+                  "y": 0.2943578322197476
+                },
+                "end": {
+                  "x": 0.6118110236220472,
+                  "y": 0.2943578322197476
+                },
+                "realDistanceMm": 19125,
+                "pageSpaceLength": 0.6451373422420192,
+                "unitVector": {
+                  "x": 1,
+                  "y": 0
+                },
+                "mmPerPageUnit": 29644.850402761796
+              },
+              "secondaryAxis": {
+                "start": {
+                  "x": 0.6963254593175853,
+                  "y": 0.38047512991833704
+                },
+                "end": {
+                  "x": 0.6963254593175853,
+                  "y": 0.6826280623608018
+                },
+                "realDistanceMm": 8950,
+                "pageSpaceLength": 0.3021529324424647,
+                "unitVector": {
+                  "x": 0,
+                  "y": 1
+                },
+                "mmPerPageUnit": 29620.761670761673
+              }
+            }
+          },
+          "measurements": [],
+          "areaBoxes": [],
+          "beams": [
+            {
+              "id": "57092c73-b72b-4ad7-88d1-09ca517da09e",
+              "pageNumber": 8,
+              "start": {
+                "x": 0.617554447651535,
+                "y": 0.3585746102449889
+              },
+              "end": {
+                "x": 0.6188664392547888,
+                "y": 0.4591685226429102
+              },
+              "lengthMm": 2980.176239996606,
+              "beamTypeId": "07c427c9-8394-4e8d-a35e-85135b200cf0"
+            },
+            {
+              "id": "9dff5de3-e27c-4c6d-b96d-6058df62f586",
+              "pageNumber": 8,
+              "start": {
+                "x": 0.5949881920755707,
+                "y": 0.45842613214550854
+              },
+              "end": {
+                "x": 0.48346890579900287,
+                "y": 0.4580549368968077
+              },
+              "lengthMm": 4676.724662495881,
+              "beamTypeId": "d5196281-b2bb-46b7-85e4-e3b3b2edcb3f"
+            },
+            {
+              "id": "1842a620-12bc-4384-9869-1cb660e69135",
+              "pageNumber": 8,
+              "start": {
+                "x": 0.48373130411965365,
+                "y": 0.3830734966592428
+              },
+              "end": {
+                "x": 0.48320650747835214,
+                "y": 0.47401633259094283
+              },
+              "lengthMm": 2693.8859691450225,
+              "beamTypeId": "d5196281-b2bb-46b7-85e4-e3b3b2edcb3f"
+            },
+            {
+              "id": "e45926ec-734e-4214-a051-f1f09918c1cf",
+              "pageNumber": 8,
+              "start": {
+                "x": 0.381395959065862,
+                "y": 0.285449146250928
+              },
+              "end": {
+                "x": 0.3808711624245605,
+                "y": 0.4758723088344469
+              },
+              "lengthMm": 5640.522050896649,
+              "beamTypeId": "d5196281-b2bb-46b7-85e4-e3b3b2edcb3f"
+            }
+          ],
+          "posts": [
+            {
+              "id": "8c29eda3-16e0-4adb-91e3-f3845fb81343",
+              "pageNumber": 8,
+              "point": {
+                "x": 0.38107204997769734,
+                "y": 0.47347855737826605
+              },
+              "costDollars": 200
+            },
+            {
+              "id": "27035c7e-ff50-4300-8076-a8e23961cae2",
+              "pageNumber": 8,
+              "point": {
+                "x": 0.48371688624973763,
+                "y": 0.3832172747179335
+              },
+              "costDollars": 200
+            },
+            {
+              "id": "cd9ccc4d-0eaf-491a-9cd6-2fc6f8b60098",
+              "pageNumber": 8,
+              "point": {
+                "x": 0.48308716332782325,
+                "y": 0.47407238160629456
+              },
+              "costDollars": 200
+            },
+            {
+              "id": "8a612cd1-e35b-4c8e-b1b4-1f182c5779e1",
+              "pageNumber": 8,
+              "point": {
+                "x": 0.5937084899441121,
+                "y": 0.4577422153355107
+              },
+              "costDollars": 200
+            },
+            {
+              "id": "bc30fc09-742f-4b11-9288-5b6fbad9b8d0",
+              "pageNumber": 8,
+              "point": {
+                "x": 0.6184775915394102,
+                "y": 0.3597612177108076
+              },
+              "costDollars": 200
+            },
+            {
+              "id": "91d16d9d-749d-4aa2-940a-779b1e0225f5",
+              "pageNumber": 8,
+              "point": {
+                "x": 0.38170177289961166,
+                "y": 0.2858301013212589
+              },
+              "costDollars": 200
+            }
+          ],
+          "assignedPageWallTotals": {},
+          "assignedPageAreaTotals": {},
+          "retainScaleAcrossPages": true
+        },
         "6011fb17-ecec-41be-88bd-c1abee3b86d2": {
           "mode": "architectural",
           "calibrations": {
@@ -1145,207 +1343,38 @@
             }
           },
           "retainScaleAcrossPages": true
-        },
-        "f8e72c09-7d30-4793-919d-8a46e5c74b92": {
-          "mode": "structural",
-          "calibrations": {
-            "1": {
-              "pageNumber": 1,
-              "primaryAxis": {
-                "start": {
-                  "x": 0.15564304461942258,
-                  "y": 0.2943578322197476
-                },
-                "end": {
-                  "x": 0.6118110236220472,
-                  "y": 0.2943578322197476
-                },
-                "realDistanceMm": 19125,
-                "pageSpaceLength": 0.6451373422420192,
-                "unitVector": {
-                  "x": 1,
-                  "y": 0
-                },
-                "mmPerPageUnit": 29644.850402761796
-              },
-              "secondaryAxis": {
-                "start": {
-                  "x": 0.6963254593175853,
-                  "y": 0.38047512991833704
-                },
-                "end": {
-                  "x": 0.6963254593175853,
-                  "y": 0.6826280623608018
-                },
-                "realDistanceMm": 8950,
-                "pageSpaceLength": 0.3021529324424647,
-                "unitVector": {
-                  "x": 0,
-                  "y": 1
-                },
-                "mmPerPageUnit": 29620.761670761673
-              }
-            },
-            "8": {
-              "pageNumber": 8,
-              "primaryAxis": {
-                "start": {
-                  "x": 0.15564304461942258,
-                  "y": 0.2943578322197476
-                },
-                "end": {
-                  "x": 0.6118110236220472,
-                  "y": 0.2943578322197476
-                },
-                "realDistanceMm": 19125,
-                "pageSpaceLength": 0.6451373422420192,
-                "unitVector": {
-                  "x": 1,
-                  "y": 0
-                },
-                "mmPerPageUnit": 29644.850402761796
-              },
-              "secondaryAxis": {
-                "start": {
-                  "x": 0.6963254593175853,
-                  "y": 0.38047512991833704
-                },
-                "end": {
-                  "x": 0.6963254593175853,
-                  "y": 0.6826280623608018
-                },
-                "realDistanceMm": 8950,
-                "pageSpaceLength": 0.3021529324424647,
-                "unitVector": {
-                  "x": 0,
-                  "y": 1
-                },
-                "mmPerPageUnit": 29620.761670761673
-              }
-            }
-          },
-          "measurements": [],
-          "areaBoxes": [],
-          "beams": [
-            {
-              "id": "57092c73-b72b-4ad7-88d1-09ca517da09e",
-              "pageNumber": 8,
-              "start": {
-                "x": 0.617554447651535,
-                "y": 0.3585746102449889
-              },
-              "end": {
-                "x": 0.6188664392547888,
-                "y": 0.4591685226429102
-              },
-              "lengthMm": 2980.176239996606,
-              "beamTypeId": "07c427c9-8394-4e8d-a35e-85135b200cf0"
-            },
-            {
-              "id": "9dff5de3-e27c-4c6d-b96d-6058df62f586",
-              "pageNumber": 8,
-              "start": {
-                "x": 0.5949881920755707,
-                "y": 0.45842613214550854
-              },
-              "end": {
-                "x": 0.48346890579900287,
-                "y": 0.4580549368968077
-              },
-              "lengthMm": 4676.724662495881,
-              "beamTypeId": "d5196281-b2bb-46b7-85e4-e3b3b2edcb3f"
-            },
-            {
-              "id": "1842a620-12bc-4384-9869-1cb660e69135",
-              "pageNumber": 8,
-              "start": {
-                "x": 0.48373130411965365,
-                "y": 0.3830734966592428
-              },
-              "end": {
-                "x": 0.48320650747835214,
-                "y": 0.47401633259094283
-              },
-              "lengthMm": 2693.8859691450225,
-              "beamTypeId": "d5196281-b2bb-46b7-85e4-e3b3b2edcb3f"
-            },
-            {
-              "id": "e45926ec-734e-4214-a051-f1f09918c1cf",
-              "pageNumber": 8,
-              "start": {
-                "x": 0.381395959065862,
-                "y": 0.285449146250928
-              },
-              "end": {
-                "x": 0.3808711624245605,
-                "y": 0.4758723088344469
-              },
-              "lengthMm": 5640.522050896649,
-              "beamTypeId": "d5196281-b2bb-46b7-85e4-e3b3b2edcb3f"
-            }
-          ],
-          "posts": [
-            {
-              "id": "8c29eda3-16e0-4adb-91e3-f3845fb81343",
-              "pageNumber": 8,
-              "point": {
-                "x": 0.38107204997769734,
-                "y": 0.47347855737826605
-              },
-              "costDollars": 200
-            },
-            {
-              "id": "27035c7e-ff50-4300-8076-a8e23961cae2",
-              "pageNumber": 8,
-              "point": {
-                "x": 0.48371688624973763,
-                "y": 0.3832172747179335
-              },
-              "costDollars": 200
-            },
-            {
-              "id": "cd9ccc4d-0eaf-491a-9cd6-2fc6f8b60098",
-              "pageNumber": 8,
-              "point": {
-                "x": 0.48308716332782325,
-                "y": 0.47407238160629456
-              },
-              "costDollars": 200
-            },
-            {
-              "id": "8a612cd1-e35b-4c8e-b1b4-1f182c5779e1",
-              "pageNumber": 8,
-              "point": {
-                "x": 0.5937084899441121,
-                "y": 0.4577422153355107
-              },
-              "costDollars": 200
-            },
-            {
-              "id": "bc30fc09-742f-4b11-9288-5b6fbad9b8d0",
-              "pageNumber": 8,
-              "point": {
-                "x": 0.6184775915394102,
-                "y": 0.3597612177108076
-              },
-              "costDollars": 200
-            },
-            {
-              "id": "91d16d9d-749d-4aa2-940a-779b1e0225f5",
-              "pageNumber": 8,
-              "point": {
-                "x": 0.38170177289961166,
-                "y": 0.2858301013212589
-              },
-              "costDollars": 200
-            }
-          ],
-          "assignedPageWallTotals": {},
-          "assignedPageAreaTotals": {},
-          "retainScaleAcrossPages": true
         }
       },
-      "markupEditor": null
+      "markupEditor": {
+        "base": null,
+        "overlay": null,
+        "overlayTransform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0,
+          "opacity": 0.45,
+          "visible": true,
+          "locked": false
+        },
+        "calibration": null,
+        "dimensions": [],
+        "shapes": [],
+        "markupStyle": {
+          "dimensionLineColor": "#0039b3",
+          "dimensionTextColor": "#0039b3",
+          "dimensionHighlightColor": "#fde047",
+          "dimensionLineWidth": 1.5,
+          "dimensionStartArrow": false,
+          "dimensionEndArrow": false,
+          "labelScale": 0.7,
+          "labelOpacity": 0.8,
+          "shapeFillColor": "#ef4444",
+          "shapeOpacity": 0.3,
+          "shapeStrokeColor": "#b91c1c",
+          "shapeStrokeWidth": 2.5
+        }
+      }
     },
     {
       "id": "1a66e7a4-ceeb-4e34-8e8a-8d114a309279",
@@ -11307,7 +11336,7 @@
         }
       ],
       "date": "2026-09-30T00:00:11.596Z",
-      "updatedAt": "2026-10-09T01:53:35.613Z",
+      "updatedAt": "2026-10-12T00:25:23.129Z",
       "takeoffByFile": {
         "c8dc740f-586f-4fee-ab18-f8f13850aab2": {
           "mode": "structural",
@@ -30990,7 +31019,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1753",
         "file": "Variation Invoice - 2A Stornaway Cresent, Berkely Vale NSW 2261  - Advance Carpentry Services Pty Ltd .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "ea0f742d-80bc-4845-8c8c-a948b9c01fca",
@@ -31022,7 +31052,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1754",
         "file": "Variation Invoice 27 Lime Street, Cabramatta West NSW 2166 - Advance Carpentry Services Pty Ltd Third Progress Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "48869d91-7c74-4cca-adbf-995a5a6f34e4",
@@ -31347,7 +31378,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1751",
         "file": "2A Stornaway Cresent, Berkely Vale NSW 2261  - Advance Carpentry Services Pty Ltd Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "89d8377e-7bb8-4b8e-b766-165fe642539f",
@@ -60729,7 +60761,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1747",
         "file": "17 Twelth Avenue Austral NSW 2179 - Advance Carpentry Services Pty Ltd Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "ee451332-27e9-485b-971e-98cab4b458a1",
@@ -64117,7 +64150,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1745",
         "file": "29 Naevosa Road, Caddens NSW 2747 - Advance Carpentry Services Pty Ltd Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "f982f4b5-2011-4c55-92ea-1671537e4775",
@@ -71079,7 +71113,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1744",
         "file": " 27 Lime Street, Cabramatta West NSW 2166 - Advance Carpentry Services Pty Ltd Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "status": "Complete",
@@ -71547,7 +71582,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1745",
         "file": "5 Clover St, Wilton NSW 2571  - Advance Carpentry Services Pty Ltd Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "15b248b6-6abf-4cac-a281-53e581806192",
@@ -71579,7 +71615,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1744",
         "file": "24 Cockatoo Street, Gregory Hills NSW 2557 - Advance Carpentry Services Pty Ltd Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "fe8e0565-c4b2-4c16-a4aa-85991f427916",
@@ -71611,7 +71648,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1743",
         "file": " 9 Knobby Street, Oakville NSW 2765 - Advance Carpentry Services Pty Ltd Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "49ed51c1-c027-4304-b1cb-d6419235cfce",
@@ -72121,7 +72159,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1742",
         "file": "30 Hillcrest Road Pennant Hills, NSW 2120 - Advance Carpentry Services Pty Ltd Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "669d2c7f-6e6f-42a7-a2fe-aa14f07f7978",
@@ -72153,7 +72192,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1741",
         "file": "12 Suttor Road, Moss Vale NSW 2577  - Advance Carpentry Services Pty Ltd Second Progress Invoice .docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "8e69629b-e5e4-40ae-9b2e-4ea25795e6ce",
@@ -72185,7 +72225,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1739",
         "file": "19 Claremont Street, Merrylands NSW 2160 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "944cbc6e-4818-4120-83ee-e4fd7e7abf33",
@@ -72217,7 +72258,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1740",
         "file": "7 Grace Crescent Merrylands NSW 2160 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "a34ffb77-0d23-46b7-ab6c-297510910722",
@@ -72249,7 +72291,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1738",
         "file": "9 Starling Street Cobbitty, NSW 2570 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "f6e14480-212c-46e9-9231-1f5ba27087c5",
@@ -72281,7 +72324,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1736",
         "file": "Roof Battens - 27 Kent Street Blacktown, NSW 2148 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "4519df95-3b71-47dd-a615-35cd09336c31",
@@ -72313,7 +72357,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1733",
         "file": "724 Old Northern Road Dural NSW 2158 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "b443417f-32f1-437f-b41f-4597820dba4c",
@@ -72345,7 +72390,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1735",
         "file": "27 Kent Street Blacktown, NSW 2148 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "b78bb4c0-7d52-40be-b64e-62e42a1791a4",
@@ -72377,7 +72423,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1734",
         "file": "12 Suttor Road Moss Vale NSW 2577 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "609dd024-e8af-4415-a7bb-b802139732e0",
@@ -72409,7 +72456,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1732",
         "file": "Lot 119 3 Nankin Street, Austral NSW 2179 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "4526919a-b3ea-43e4-91c7-b364666eebec",
@@ -72441,7 +72489,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1731",
         "file": "8 Smythe Street, Merrylands NSW 2160 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "7b46c4ca-844a-484b-bd2c-3d599e593d3a",
@@ -72473,7 +72522,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1728",
         "file": "8 Signifera Street, Caddens NSW 2747 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "521bbaa9-c662-4d7f-bd4c-55b3b1a3635f",
@@ -72505,7 +72555,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1729",
         "file": "23 Marksell Cct, Mudgee NSW 2850 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "90a768f6-56db-474f-8cd2-69e04b745367",
@@ -72537,7 +72588,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1727",
         "file": "16 Pennywort Avenue, Leppington NSW 2179 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "281cd222-9c79-45c9-97ca-5d19987a982f",
@@ -72569,7 +72621,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1726",
         "file": "48 Greygone Street, Austral NSW 2179   - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "d206f531-656f-4f5d-bcd7-3d21fc1f7f75",
@@ -72601,7 +72654,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1725",
         "file": "Lot 9016, 109 Flametree Drive, Melonba 2765  - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "ce7e725a-1f01-493c-9770-164d8eed6e0f",
@@ -72633,7 +72687,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1724",
         "file": " Lot 9008, 22 Brushcherry Street, Melonba 2765  - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "cf3f86e9-0ffb-4163-bf03-0c9c7b3c5d2c",
@@ -72665,7 +72720,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1722",
         "file": "Lv 9 69-71 Walker St North Sydney NSW 2060  - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "fe9bf409-c1ad-42fa-9d25-da61c66e6230",
@@ -72697,7 +72753,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1723",
         "file": "82 Nathan Crescent, Dean Park NSW 2761  - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "0ba9b91b-3d5a-418f-bc6c-f857deace385",
@@ -72729,7 +72786,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1721",
         "file": "17 Tomas St, St Marys NSW 2760 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "aec44d72-cee0-42f5-89b9-89aaa931bd8f",
@@ -72761,7 +72819,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1719",
         "file": "Lot 16, 14 Keegan Street, Riverstone NSW 2765 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "00420c7a-e5e3-4528-9363-1be8fe6f45fd",
@@ -72793,7 +72852,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1720",
         "file": "Lot 216, 2 Crown Street, NSW Austral 2179 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "f5f9a632-2603-4842-9077-ee46bde517d3",
@@ -72825,7 +72885,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1713",
         "file": " Lot 9, 18 Bellevue Street, Riverstone 2765 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "d8304a41-ce5e-48ea-8765-0a37f411f62f",
@@ -72857,7 +72918,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1712",
         "file": "Lot 205, 18 Buek Street, Austral NSW 2179 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     },
     {
       "id": "3752d708-5c0d-44b8-a62a-83561980fb20",
@@ -72889,7 +72951,8 @@
       "importedFromInvoice": {
         "invoiceNumber": "1711",
         "file": "Lot 9228, 19 Ringtail Street, Melonba NSW 2765 - Advance Carpentry Services Pty Ltd Invoice.docx"
-      }
+      },
+      "invoiced": true
     }
   ],
   "$schema": [
