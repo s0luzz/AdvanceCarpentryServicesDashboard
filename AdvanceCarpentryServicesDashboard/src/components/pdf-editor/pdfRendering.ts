@@ -39,6 +39,8 @@ export async function renderPdfPageToDataUrl(
   sourceUrl: string,
   pageNumber: number,
   scale = 2,
+  // Previews use JPEG: far quicker to encode and much smaller than PNG.
+  format: "png" | "jpeg" = "png",
 ) {
   const pdf = await getPdfDocument(sourceUrl);
   const page = await pdf.getPage(pageNumber);
@@ -54,13 +56,23 @@ export async function renderPdfPageToDataUrl(
   canvas.width = Math.ceil(viewport.width);
   canvas.height = Math.ceil(viewport.height);
 
+  if (format === "jpeg") {
+    // JPEG has no transparency, so give the page a white background.
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
   await page.render({
+    canvas,
     canvasContext: context,
     viewport,
   }).promise;
 
   return {
-    src: canvas.toDataURL("image/png"),
+    src:
+      format === "jpeg"
+        ? canvas.toDataURL("image/jpeg", 0.7)
+        : canvas.toDataURL("image/png"),
     width: canvas.width,
     height: canvas.height,
   };

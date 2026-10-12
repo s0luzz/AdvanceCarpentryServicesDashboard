@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useEffect,
   useMemo,
   useRef,
@@ -11,6 +12,8 @@ import DimensionDialog from "../components/pdf-editor/DimensionDialog";
 import GlobalDimensionEditDialog from "../components/pdf-editor/GlobalDimensionEditDialog";
 import type { GlobalDimensionEdit } from "../components/pdf-editor/GlobalDimensionEditDialog";
 import LayerPanel from "../components/pdf-editor/LayerPanel";
+import { useFeedback } from "../components/ui/Feedback";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 import PagePicker from "../components/pdf-editor/PagePicker";
 import PdfEditorCanvas from "../components/pdf-editor/PdfEditorCanvas";
 import { exportMarkupPdf } from "../components/pdf-editor/exportMarkupPdf";
@@ -38,7 +41,7 @@ import {
   renderPdfPageToDataUrl,
 } from "../components/pdf-editor/pdfRendering";
 
-const API_URL = "http://localhost:3001";
+const API_URL = "";
 const SAVE_DELAY_MS = 700;
 const PAGE_RENDER_SCALE = 2.5;
 
@@ -306,6 +309,9 @@ export default function PdfEditorPage() {
   const hasLoadedRef = useRef(false);
 
   const [job, setJob] = useState<Job | null>(null);
+  const { toast, confirm } = useFeedback();
+
+  useDocumentTitle(job ? `Markup · ${job.name}` : "Markup");
   const [loadingJob, setLoadingJob] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -654,7 +660,7 @@ export default function PdfEditorPage() {
     markupStyle,
   ]);
 
-  function handlePageSelected(selection: PdfPageSelection) {
+  async function handlePageSelected(selection: PdfPageSelection) {
     if (pickerMode === "base") {
       const baseChanged =
         !baseSelection ||
@@ -664,9 +670,13 @@ export default function PdfEditorPage() {
       if (
         baseChanged &&
         (dimensions.length > 0 || shapes.length > 0 || calibration) &&
-        !window.confirm(
-          "Changing the base page will clear the current scale, dimensions and shapes. Continue?",
-        )
+        !(await confirm({
+          title: "Change the base page?",
+          message:
+            "This clears the current scale, dimensions and shapes on this page.",
+          confirmLabel: "Change base page",
+          destructive: true,
+        }))
       ) {
         return;
       }
@@ -697,19 +707,30 @@ export default function PdfEditorPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Remove the overlay layer? Your scale, dimensions and shapes will remain.",
-    );
-
-    if (!confirmed) {
-      return;
-    }
+    const previous = {
+      selection: overlaySelection,
+      page: overlayPage,
+      transform: overlayTransform,
+    };
 
     setOverlaySelection(null);
     setOverlayPage(null);
     setOverlayTransform(cloneDefaultOverlayTransform());
     setAlignmentDraft({});
     setTool("select");
+
+    toast({
+      message: "Removed the overlay layer. Your scale, dimensions and shapes remain.",
+      durationMs: 8000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          setOverlaySelection(previous.selection);
+          setOverlayPage(previous.page);
+          setOverlayTransform(previous.transform);
+        },
+      },
+    });
   }
 
   function clearDimensions() {
@@ -717,11 +738,14 @@ export default function PdfEditorPage() {
       return;
     }
 
-    if (!window.confirm("Clear all dimension markup from this base page?")) {
-      return;
-    }
-
+    const previous = dimensions;
     setDimensions([]);
+
+    toast({
+      message: `Cleared ${previous.length} dimension${previous.length === 1 ? "" : "s"}.`,
+      durationMs: 8000,
+      action: { label: "Undo", onClick: () => setDimensions(previous) },
+    });
   }
 
   function clearShapes() {
@@ -729,11 +753,14 @@ export default function PdfEditorPage() {
       return;
     }
 
-    if (!window.confirm("Clear all solid shapes from this base page?")) {
-      return;
-    }
-
+    const previous = shapes;
     setShapes([]);
+
+    toast({
+      message: `Cleared ${previous.length} shape${previous.length === 1 ? "" : "s"}.`,
+      durationMs: 8000,
+      action: { label: "Undo", onClick: () => setShapes(previous) },
+    });
   }
 
   // Ignore ids of dimensions that have since been deleted or undone.
@@ -945,21 +972,21 @@ export default function PdfEditorPage() {
 
   if (loadingJob) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-8">
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-8">
         <div className="rounded-xl bg-white px-8 py-6 text-sm text-slate-600 shadow-sm">
           Loading markup editor…
         </div>
-      </main>
+      </div>
     );
   }
 
   if (loadError || !job) {
     return (
-      <main className="min-h-screen bg-slate-100 p-8">
+      <div className="min-h-screen bg-slate-100 p-4 md:p-8">
         <div className="mx-auto max-w-2xl rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
           {loadError || "Quote not found."}
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -1030,7 +1057,7 @@ export default function PdfEditorPage() {
   ];
 
   return (
-    <main className="flex h-screen min-h-[700px] flex-col overflow-hidden bg-slate-100">
+    <div className="flex h-screen min-h-[700px] flex-col overflow-hidden bg-slate-100">
       <header className="z-40 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -1077,7 +1104,24 @@ export default function PdfEditorPage() {
       </header>
 
       <div className="z-40 flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-5 py-3">
-        {tools.map((item) => (
+        {!baseSelection && (
+          <>
+            <button
+              type="button"
+              onClick={() => setPickerMode("base")}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Choose base page
+            </button>
+
+            <p className="text-sm text-slate-500">
+              Pick the plan page to mark up. The tools appear once you have.
+            </p>
+          </>
+        )}
+
+        {baseSelection && tools.map((item) => (
+          <Fragment key={item.id}>
           <button
             key={item.id}
             type="button"
@@ -1101,8 +1145,15 @@ export default function PdfEditorPage() {
           >
             {item.label}
           </button>
+
+          {(item.id === "align" || item.id === "calibrate") && (
+            <div className="mx-1 h-6 w-px bg-slate-200" />
+          )}
+          </Fragment>
         ))}
 
+        {baseSelection && (
+          <>
         <div className="mx-1 h-6 w-px bg-slate-200" />
 
         <button
@@ -1115,9 +1166,8 @@ export default function PdfEditorPage() {
 
         <button
           type="button"
-          disabled={!baseSelection}
           onClick={() => setPickerMode("overlay")}
-          className="rounded-lg border border-violet-300 px-3 py-2 text-sm font-medium text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           {overlaySelection ? "Change Overlay" : "Add Overlay"}
         </button>
@@ -1127,7 +1177,7 @@ export default function PdfEditorPage() {
             type="button"
             disabled={dimensions.length === 0}
             onClick={undoLastDimension}
-            className="rounded-lg border border-blue-300 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Undo Dimension
           </button>
@@ -1136,11 +1186,13 @@ export default function PdfEditorPage() {
             type="button"
             disabled={shapes.length === 0}
             onClick={undoLastShape}
-            className="rounded-lg border border-rose-300 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Undo Shape
           </button>
         </div>
+          </>
+        )}
       </div>
 
       {(renderError || saveError || exportError) && (
@@ -1348,7 +1400,7 @@ export default function PdfEditorPage() {
         title={pendingDimension?.id ? "Edit Dimension" : "Add Dimension"}
         confirmLabel={pendingDimension?.id ? "Save" : "Add Dimension"}
         onCancel={() => setPendingDimension(null)}
-        onSave={(label, displayText) => {
+        onSave={async (label, displayText) => {
           if (!pendingDimension) {
             return;
           }
@@ -1375,9 +1427,11 @@ export default function PdfEditorPage() {
 
             if (
               duplicate &&
-              !window.confirm(
-                "A dimension already sits on this same line. Add a second one anyway?",
-              )
+              !(await confirm({
+                title: "Add a second dimension here?",
+                message: "A dimension already sits on this same line.",
+                confirmLabel: "Add it anyway",
+              }))
             ) {
               return;
             }
@@ -1406,6 +1460,6 @@ export default function PdfEditorPage() {
           setPendingDimension(null);
         }}
       />
-    </main>
+    </div>
   );
 }

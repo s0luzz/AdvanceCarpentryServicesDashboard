@@ -1,5 +1,6 @@
 import {
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   useEffect,
   useMemo,
   useRef,
@@ -10,14 +11,18 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
+import { formatCurrency } from "../lib/format";
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url,
 ).toString();
 
 type PdfViewerProps = {
-  jobId: string;
-  fileId: string;
+  // Omit both to look at a plan from this computer: nothing is loaded
+  // from or saved to a job.
+  jobId?: string;
+  fileId?: string;
   file: File | string;
   onClose?: () => void;
 };
@@ -172,7 +177,7 @@ type AreaDrawingStep =
   | "second-line";
 
 const API_URL =
-  "http://localhost:3001";
+  "";
 
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 4;
@@ -1000,6 +1005,67 @@ export default function PdfViewer({
     >
   >({});
 
+  // Last "Clear page ..." action, kept briefly so it can be undone.
+  type ClearUndo = {
+    label: string;
+    measurements: typeof measurements;
+    areaBoxes: typeof areaBoxes;
+    wallTotals: typeof assignedPageWallTotals;
+    areaTotals: typeof assignedPageAreaTotals;
+  };
+
+  const [clearUndo, setClearUndo] =
+    useState<ClearUndo | null>(null);
+  const clearUndoTimer = useRef<number | undefined>(undefined);
+
+  useEffect(
+    () => () => window.clearTimeout(clearUndoTimer.current),
+    [],
+  );
+
+  // The totals panels are big, so they fold away to a one-line summary
+  // (remembered between visits) and the plan gets the room.
+  const [totalsOpen, setTotalsOpen] = useState(() => {
+    try {
+      return localStorage.getItem("takeoffTotalsOpen") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  function toggleTotals() {
+    setTotalsOpen((current) => {
+      try {
+        localStorage.setItem("takeoffTotalsOpen", current ? "0" : "1");
+      } catch {
+        // Not saved; still works for this visit.
+      }
+
+      return !current;
+    });
+  }
+
+  // Touch, pen and mouse all arrive as pointer events. Two pointers = pinch.
+  const pointersRef = useRef(
+    new Map<number, { x: number; y: number }>(),
+  );
+  const pinchRef = useRef<{
+    distance: number;
+    scale: number;
+    pan: { x: number; y: number };
+    midX: number;
+    midY: number;
+  } | null>(null);
+  const dragMovedRef = useRef(false);
+  const spaceHeldRef = useRef(false);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const shortcutsRef = useRef<{
+    zoomIn: () => void;
+    zoomOut: () => void;
+    fit: () => void;
+    cancel: () => void;
+  } | null>(null);
+
   /*
    * -------------------------------------------------------
    * SCALE RETENTION
@@ -1367,22 +1433,28 @@ export default function PdfViewer({
       setLastSavedAt(null);
 
       try {
-        const response =
-          await fetch(
-            `${API_URL}/api/quoted-jobs/${jobId}`,
-          );
-
-        const job =
-          await readJsonResponse<{
-            takeoff?: unknown;
-            takeoffByFile?: Record<
-              string,
-              unknown
-            >;
-          }>(
-            response,
-            "Unable to load quote",
-          );
+        const job:
+          | {
+              takeoff?: unknown;
+              takeoffByFile?: Record<
+                string,
+                unknown
+              >;
+            }
+          | undefined = jobId
+          ? await readJsonResponse<{
+              takeoff?: unknown;
+              takeoffByFile?: Record<
+                string,
+                unknown
+              >;
+            }>(
+              await fetch(
+                `${API_URL}/api/quoted-jobs/${jobId}`,
+              ),
+              "Unable to load quote",
+            )
+          : {};
 
         if (cancelled) {
           return;
@@ -1422,7 +1494,9 @@ export default function PdfViewer({
 
         const saved =
           parseSavedTakeoff(
-            takeoffByFile[fileId] ??
+            (fileId
+              ? takeoffByFile[fileId]
+              : undefined) ??
               job.takeoff,
           );
 
@@ -1516,6 +1590,8 @@ export default function PdfViewer({
 
   useEffect(() => {
     if (
+      !jobId ||
+      !fileId ||
       !hasLoadedTakeoffRef.current ||
       viewerMode === null
     ) {
@@ -1778,13 +1854,21 @@ export default function PdfViewer({
 
   useEffect(() => {
     function handleMouseMove(
-      event: globalThis.MouseEvent,
+      event: globalThis.PointerEvent,
     ) {
       const dragStart =
         dragStartRef.current;
 
       if (!dragStart) {
         return;
+      }
+
+      if (
+        Math.abs(event.clientX - dragStart.mouseX) +
+          Math.abs(event.clientY - dragStart.mouseY) >
+        4
+      ) {
+        dragMovedRef.current = true;
       }
 
       const nextPan = {
@@ -1815,23 +1899,33 @@ export default function PdfViewer({
     }
 
     window.addEventListener(
-      "mousemove",
+      "pointermove",
       handleMouseMove,
     );
 
     window.addEventListener(
-      "mouseup",
+      "pointerup",
+      handleMouseUp,
+    );
+
+    window.addEventListener(
+      "pointercancel",
       handleMouseUp,
     );
 
     return () => {
       window.removeEventListener(
-        "mousemove",
+        "pointermove",
         handleMouseMove,
       );
 
       window.removeEventListener(
-        "mouseup",
+        "pointerup",
+        handleMouseUp,
+      );
+
+      window.removeEventListener(
+        "pointercancel",
         handleMouseUp,
       );
     };
@@ -1885,18 +1979,31 @@ export default function PdfViewer({
           ? 1
           : -1;
 
+      // Trackpad pinch arrives as Ctrl+wheel with many tiny deltas, so
+      // scale smoothly with them; a plain wheel still zooms in steps.
       const nextScale =
-        clamp(
-          Number(
-            (
-              currentScale +
-              direction *
-                SCALE_STEP
-            ).toFixed(2),
-          ),
-          MIN_SCALE,
-          MAX_SCALE,
-        );
+        event.ctrlKey || event.metaKey
+          ? clamp(
+              Number(
+                (
+                  currentScale *
+                  Math.exp(-event.deltaY * 0.01)
+                ).toFixed(3),
+              ),
+              MIN_SCALE,
+              MAX_SCALE,
+            )
+          : clamp(
+              Number(
+                (
+                  currentScale +
+                  direction *
+                    SCALE_STEP
+                ).toFixed(2),
+              ),
+              MIN_SCALE,
+              MAX_SCALE,
+            );
 
       if (
         nextScale ===
@@ -1968,6 +2075,94 @@ export default function PdfViewer({
         "wheel",
         handleWheel,
       );
+    };
+  }, []);
+
+  useEffect(() => {
+    shortcutsRef.current = {
+      zoomIn,
+      zoomOut,
+      fit: fitToWidth,
+      cancel: resetDrawingState,
+    };
+  });
+
+  useEffect(() => {
+    function isTyping(target: EventTarget | null) {
+      return (
+        target instanceof HTMLElement &&
+        (target.matches("input, textarea, select") ||
+          target.isContentEditable)
+      );
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (isTyping(event.target)) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        shortcutsRef.current?.cancel();
+        return;
+      }
+
+      if (
+        modalOpenRef.current ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const onControl =
+        event.target instanceof Element &&
+        event.target.closest("button, a, [role=button]");
+
+      if (event.code === "Space") {
+        // Space on a focused button should still press it.
+        if (onControl) {
+          return;
+        }
+
+        event.preventDefault();
+
+        if (!spaceHeldRef.current) {
+          spaceHeldRef.current = true;
+          setSpaceHeld(true);
+        }
+
+        return;
+      }
+
+      if (event.key === "+" || event.key === "=") {
+        shortcutsRef.current?.zoomIn();
+      } else if (event.key === "-" || event.key === "_") {
+        shortcutsRef.current?.zoomOut();
+      } else if (event.key === "0") {
+        shortcutsRef.current?.fit();
+      }
+    }
+
+    function releaseSpace() {
+      spaceHeldRef.current = false;
+      setSpaceHeld(false);
+    }
+
+    function handleKeyUp(event: KeyboardEvent) {
+      if (event.code === "Space") {
+        releaseSpace();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", releaseSpace);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", releaseSpace);
     };
   }, []);
 
@@ -2387,11 +2582,12 @@ export default function PdfViewer({
   }
 
   function handlePanStart(
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLDivElement>,
   ) {
     if (
-      activeToolRef.current !==
-        "pan" ||
+      (activeToolRef.current !==
+        "pan" &&
+        !spaceHeldRef.current) ||
       modalOpenRef.current ||
       event.button !== 0
     ) {
@@ -2428,6 +2624,95 @@ export default function PdfViewer({
     setIsPanning(
       true,
     );
+  }
+
+  function handleViewportPointerDown(
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    pointersRef.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+    dragMovedRef.current = false;
+
+    if (pointersRef.current.size === 2) {
+      const [a, b] = [...pointersRef.current.values()];
+      const bounds =
+        viewportRef.current?.getBoundingClientRect();
+
+      pinchRef.current = {
+        distance: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+        scale: pageWidthRef.current ? 1 : scaleRef.current,
+        pan: panRef.current,
+        midX: (a.x + b.x) / 2 - (bounds?.left ?? 0) - (bounds?.width ?? 0) / 2,
+        midY: (a.y + b.y) / 2 - (bounds?.top ?? 0) - (bounds?.height ?? 0) / 2,
+      };
+
+      // The second finger turns a drag into a pinch.
+      dragStartRef.current = null;
+      setIsPanning(false);
+      return;
+    }
+
+    handlePanStart(event);
+  }
+
+  function handleViewportPointerMove(
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    if (!pointersRef.current.has(event.pointerId)) {
+      return;
+    }
+
+    pointersRef.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    const pinch = pinchRef.current;
+
+    if (!pinch || pointersRef.current.size < 2) {
+      return;
+    }
+
+    const bounds =
+      viewportRef.current?.getBoundingClientRect();
+
+    if (!bounds) {
+      return;
+    }
+
+    const [a, b] = [...pointersRef.current.values()];
+    const distance = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    const nextScale = clamp(
+      Number(((pinch.scale * distance) / pinch.distance).toFixed(3)),
+      MIN_SCALE,
+      MAX_SCALE,
+    );
+    const ratio = nextScale / pinch.scale;
+
+    // Keep the point that was between the fingers under the fingers.
+    const midX = (a.x + b.x) / 2 - bounds.left - bounds.width / 2;
+    const midY = (a.y + b.y) / 2 - bounds.top - bounds.height / 2;
+    const nextPan = {
+      x: midX - (pinch.midX - pinch.pan.x) * ratio,
+      y: midY - (pinch.midY - pinch.pan.y) * ratio,
+    };
+
+    pageWidthRef.current = undefined;
+    setPageWidth(undefined);
+    updateScale(nextScale);
+    updatePan(nextPan);
+  }
+
+  function handleViewportPointerEnd(
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    pointersRef.current.delete(event.pointerId);
+
+    if (pointersRef.current.size < 2) {
+      pinchRef.current = null;
+    }
   }
 
   function getRelativePoint(
@@ -2468,6 +2753,11 @@ export default function PdfViewer({
   ) {
     event.preventDefault();
     event.stopPropagation();
+
+    if (dragMovedRef.current) {
+      dragMovedRef.current = false;
+      return;
+    }
 
     const point =
       getRelativePoint(
@@ -3648,6 +3938,38 @@ export default function PdfViewer({
     resetAreaDrawing();
   }
 
+  function clearWithUndo(label: string, clear: () => void) {
+    setClearUndo({
+      label,
+      measurements,
+      areaBoxes,
+      wallTotals: assignedPageWallTotals,
+      areaTotals: assignedPageAreaTotals,
+    });
+
+    window.clearTimeout(clearUndoTimer.current);
+    clearUndoTimer.current = window.setTimeout(
+      () => setClearUndo(null),
+      8000,
+    );
+
+    clear();
+  }
+
+  function undoClear() {
+    if (!clearUndo) {
+      return;
+    }
+
+    setMeasurements(clearUndo.measurements);
+    setAreaBoxes(clearUndo.areaBoxes);
+    setAssignedPageWallTotals(clearUndo.wallTotals);
+    setAssignedPageAreaTotals(clearUndo.areaTotals);
+
+    window.clearTimeout(clearUndoTimer.current);
+    setClearUndo(null);
+  }
+
   function clearWalls() {
     setMeasurements(
       (current) =>
@@ -3787,7 +4109,7 @@ export default function PdfViewer({
     viewerMode === null
   ) {
     return (
-      <div className="flex h-[calc(100vh-2rem)] min-h-[650px] w-full flex-col items-center justify-center gap-4 rounded-xl border border-slate-200 bg-slate-100 p-8 text-center">
+      <div className="flex h-screen min-h-[650px] w-full flex-col items-center justify-center gap-4 bg-slate-100 p-8 text-center">
         <h2 className="text-lg font-semibold text-slate-900">
           What are you measuring?
         </h2>
@@ -3840,7 +4162,24 @@ export default function PdfViewer({
   }
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] min-h-[650px] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+    <div className="flex h-screen min-h-[650px] w-full flex-col overflow-hidden bg-slate-100">
+      {clearUndo && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-4 rounded-lg bg-slate-900 px-4 py-3 text-sm text-white shadow-lg"
+        >
+          <span>Cleared {clearUndo.label}.</span>
+
+          <button
+            type="button"
+            onClick={undoClear}
+            className="font-semibold text-sky-300 hover:text-sky-200"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
       <header className="relative z-40 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
         <div className="flex items-center gap-2">
           {onClose && (
@@ -3977,6 +4316,8 @@ export default function PdfViewer({
               displayedScale <=
               MIN_SCALE
             }
+            title="Zoom out (−)"
+            aria-label="Zoom out"
             className="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
             −
@@ -4000,6 +4341,8 @@ export default function PdfViewer({
               displayedScale >=
               MAX_SCALE
             }
+            title="Zoom in (+)"
+            aria-label="Zoom in"
             className="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
             +
@@ -4010,6 +4353,7 @@ export default function PdfViewer({
             onClick={
               fitToWidth
             }
+            title="Fit width (0)"
             className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
           >
             Fit width
@@ -4055,8 +4399,8 @@ export default function PdfViewer({
           className={`rounded-md px-4 py-2 text-sm font-medium ${
             activeTool ===
             "calibrate"
-              ? "bg-amber-500 text-white"
-              : "border border-amber-300 bg-white text-amber-700 hover:bg-amber-50"
+              ? "bg-slate-800 text-white"
+              : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
         >
           {pageCalibration
@@ -4076,8 +4420,8 @@ export default function PdfViewer({
           }
           className={`rounded-md px-4 py-2 text-sm font-medium ${
             retainScaleAcrossPages
-              ? "bg-emerald-600 text-white"
-              : "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
+              ? "border border-slate-800 bg-slate-100 text-slate-900"
+              : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
           title="Use the most recently calibrated page on pages that do not have their own scale."
         >
@@ -4265,7 +4609,7 @@ export default function PdfViewer({
                   currentMeasurements.length ===
                   0
                 }
-                className="rounded-md border border-blue-300 px-3 py-2 text-sm text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Undo Wall
               </button>
@@ -4281,7 +4625,7 @@ export default function PdfViewer({
                   currentFloorBoxes.length ===
                   0
                 }
-                className="rounded-md border border-green-300 px-3 py-2 text-sm text-green-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Undo Floor
               </button>
@@ -4297,7 +4641,7 @@ export default function PdfViewer({
                   currentRoofBoxes.length ===
                   0
                 }
-                className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Undo Roof
               </button>
@@ -4316,7 +4660,7 @@ export default function PdfViewer({
                   currentBeams.length ===
                   0
                 }
-                className="rounded-md border border-orange-300 px-3 py-2 text-sm text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Undo Beam
               </button>
@@ -4330,7 +4674,7 @@ export default function PdfViewer({
                   currentPosts.length ===
                   0
                 }
-                className="rounded-md border border-purple-300 px-3 py-2 text-sm text-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Undo Post
               </button>
@@ -4351,9 +4695,77 @@ export default function PdfViewer({
         </div>
       </div>
 
-      {viewerMode ===
+      {viewerMode && (
+        <div className="relative z-40 flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1 border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm">
+          <button
+            type="button"
+            onClick={toggleTotals}
+            aria-expanded={totalsOpen}
+            className="flex items-center gap-1.5 font-medium text-slate-700 hover:text-slate-900"
+          >
+            <span aria-hidden="true">{totalsOpen ? "▾" : "▸"}</span>
+            Totals &amp; assignment
+          </button>
+
+          {viewerMode === "architectural" ? (
+            <>
+              <span className="text-slate-600">
+                Walls{" "}
+                <strong className="text-blue-700">
+                  {formatTotalDistance(currentWallTotalMm)}
+                </strong>
+              </span>
+
+              <span className="text-slate-600">
+                Floor{" "}
+                <strong className="text-green-700">
+                  {formatArea(currentFloorTotalM2)}
+                </strong>
+              </span>
+
+              <span className="text-slate-600">
+                Roof{" "}
+                <strong className="text-red-700">
+                  {formatArea(currentRoofTotalM2)}
+                </strong>
+              </span>
+
+              <span className="text-slate-500">
+                Job so far: GFW{" "}
+                {formatTotalDistance(assignedTotals.gfw)} · FFW{" "}
+                {formatTotalDistance(assignedTotals.ffw)} · Floor{" "}
+                {formatArea(assignedTotals.floor)} · Roof{" "}
+                {formatArea(assignedTotals.roof)}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-slate-600">
+                Beams{" "}
+                <strong className="text-orange-700">
+                  {currentBeams.length}
+                </strong>
+              </span>
+
+              <span className="text-slate-600">
+                Posts{" "}
+                <strong className="text-purple-700">
+                  {currentPosts.length}
+                </strong>
+              </span>
+
+              <span className="text-slate-600">
+                Steel{" "}
+                <strong>{formatCurrency(steelTotal)}</strong>
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {totalsOpen && viewerMode ===
         "architectural" && (
-      <div className="relative z-40 grid shrink-0 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="relative z-40 grid max-h-[45vh] shrink-0 gap-3 overflow-y-auto border-b border-slate-200 bg-slate-50 px-4 py-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-blue-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -4449,8 +4861,8 @@ export default function PdfViewer({
 
           <button
             type="button"
-            onClick={
-              clearWalls
+            onClick={() =>
+              clearWithUndo("page walls", clearWalls)
             }
             disabled={
               currentMeasurements.length ===
@@ -4533,9 +4945,7 @@ export default function PdfViewer({
           <button
             type="button"
             onClick={() =>
-              clearArea(
-                "floor",
-              )
+              clearWithUndo("page floor", () => clearArea("floor"))
             }
             disabled={
               currentFloorBoxes.length ===
@@ -4618,9 +5028,7 @@ export default function PdfViewer({
           <button
             type="button"
             onClick={() =>
-              clearArea(
-                "roof",
-              )
+              clearWithUndo("page roof", () => clearArea("roof"))
             }
             disabled={
               currentRoofBoxes.length ===
@@ -4682,9 +5090,9 @@ export default function PdfViewer({
       </div>
       )}
 
-      {viewerMode ===
+      {totalsOpen && viewerMode ===
         "structural" && (
-        <div className="relative z-40 grid shrink-0 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:grid-cols-3">
+        <div className="relative z-40 grid max-h-[45vh] shrink-0 gap-3 overflow-y-auto border-b border-slate-200 bg-slate-50 px-4 py-3 md:grid-cols-3">
           <div className="rounded-lg border border-orange-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Beams (this page)
@@ -4782,13 +5190,26 @@ export default function PdfViewer({
         </div>
       )}
 
-      <main
+      <div
         ref={viewportRef}
-        onMouseDown={
-          handlePanStart
+        onPointerDown={
+          handleViewportPointerDown
+        }
+        onPointerMove={
+          handleViewportPointerMove
+        }
+        onPointerUp={
+          handleViewportPointerEnd
+        }
+        onPointerCancel={
+          handleViewportPointerEnd
         }
         className={`relative min-h-0 flex-1 touch-none overflow-hidden bg-slate-200 ${
-          interactiveOverlay
+          spaceHeld
+            ? isPanning
+              ? "cursor-grabbing"
+              : "cursor-grab"
+            : interactiveOverlay
             ? "cursor-crosshair"
             : isPanning
               ? "cursor-grabbing"
@@ -5333,7 +5754,7 @@ export default function PdfViewer({
             </Document>
           </div>
         </div>
-      </main>
+      </div>
 
       {isDistanceModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">

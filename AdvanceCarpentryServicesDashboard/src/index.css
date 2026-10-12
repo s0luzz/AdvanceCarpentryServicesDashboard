@@ -64,3 +64,40 @@
 .dark .bg-slate-900 {
   background-color: #334155;
 }
+
+
+/* Keyboard focus: one clear ring for buttons, links and the like. Text
+   inputs keep the ring styles they already define. */
+:is(button, a, select, summary, [role="button"], [tabindex]):focus-visible,
+:is(input[type="checkbox"], input[type="radio"], input[type="range"]):focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+}
+
+/* Wrong-password cue; skipped for people who ask for less motion. */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shake {
+    animation: none;
+  }
+}
+
+/* Brand colours chosen for contrast on light backgrounds; lift them in dark mode. */
+.dark .text-sky-600 {
+  color: #38bdf8;
+}
+
+.dark .text-lime-700 {
+  color: #a3e635;
+}

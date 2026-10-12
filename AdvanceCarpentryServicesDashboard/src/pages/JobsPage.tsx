@@ -5,12 +5,17 @@ import NewQuoteModal, {
     type NewQuoteFormData,
     type QuoteStatus,
 } from "../components/layout/NewQuoteModal";
-import deleteicon from "../assets/icons/delete.svg";
+import { useFeedback } from "../components/ui/Feedback";
+import RowMenu from "../components/ui/RowMenu";
+import { TableSkeleton } from "../components/ui/Skeleton";
+import { formatCurrency, formatDate } from "../lib/format";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 type QuotedJob = {
     id: string;
     name: string;
     status?: string;
+    invoiced?: boolean;
     quotedAmount: number;
     gst: number;
     inclGst: number;
@@ -39,6 +44,9 @@ const JOB_STATUSES = STATUS_FILTERS.filter(
 );
 
 export default function JobsPage() {
+    const { toast, confirm } = useFeedback();
+    useDocumentTitle("Jobs");
+
     const [quotedJobs, setQuotedJobs] = useState<QuotedJob[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -51,14 +59,10 @@ export default function JobsPage() {
     const [statusFilter, setStatusFilter] =
         useState<QuoteStatus | "All">("All");
 
-    function formatCurrency(value: number | undefined) {
-        return `$${(value ?? 0).toLocaleString()}`;
-    }
-
     async function fetchQuotedJobs() {
         try {
             const response = await fetch(
-                "http://localhost:3001/api/quoted-jobs",
+                "/api/quoted-jobs",
             );
 
             if (!response.ok) {
@@ -82,6 +86,11 @@ export default function JobsPage() {
                 "Failed to fetch quoted jobs:",
                 error,
             );
+
+            toast({
+                message: "Couldn't load the list. Try refreshing the page.",
+                tone: "error",
+            });
         } finally {
             setLoading(false);
         }
@@ -110,11 +119,7 @@ export default function JobsPage() {
                 return true;
             }
 
-            const formattedDate = job.date
-                ? new Date(job.date).toLocaleDateString(
-                      "en-AU",
-                  )
-                : "";
+            const formattedDate = formatDate(job.date);
 
             return (
                 job.name
@@ -252,7 +257,7 @@ export default function JobsPage() {
             });
 
             const response = await fetch(
-                "http://localhost:3001/api/quoted-jobs",
+                "/api/quoted-jobs",
                 {
                     method: "POST",
                     body: quoteData,
@@ -279,11 +284,13 @@ export default function JobsPage() {
                 error,
             );
 
-            window.alert(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to save quote.",
-            );
+            toast({
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to save quote.",
+                tone: "error",
+            });
         }
     }
 
@@ -308,7 +315,7 @@ export default function JobsPage() {
 
         try {
             const response = await fetch(
-                `http://localhost:3001/api/quoted-jobs/${id}`,
+                `/api/quoted-jobs/${id}`,
                 {
                     method: "PATCH",
                     headers: {
@@ -330,25 +337,81 @@ export default function JobsPage() {
                 error,
             );
             setStatus(previous);
-            window.alert("Failed to update status.");
+            toast({
+                message: "Couldn't update the status. It's been put back.",
+                tone: "error",
+            });
+        }
+    }
+
+    async function handleInvoicedChange(
+        id: string,
+        invoiced: boolean,
+    ) {
+        const setInvoiced = (value: boolean) =>
+            setQuotedJobs((current) =>
+                current.map((job) =>
+                    job.id === id
+                        ? { ...job, invoiced: value }
+                        : job,
+                ),
+            );
+
+        setInvoiced(invoiced);
+
+        try {
+            const response = await fetch(
+                `/api/quoted-jobs/${id}`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                    },
+                    body: JSON.stringify({ invoiced }),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Failed to update invoiced",
+                );
+            }
+        } catch (error) {
+            console.error(
+                "Failed to update invoiced:",
+                error,
+            );
+            setInvoiced(!invoiced);
+            toast({
+                message:
+                    "Couldn't update the Invoiced tick. It's been put back.",
+                tone: "error",
+            });
         }
     }
 
     async function handleDeleteQuote(
         id: string,
     ) {
-        const confirmDelete =
-            window.confirm(
-                "Are you sure you want to delete this job?",
-            );
+        const job = quotedJobs.find((item) => item.id === id);
+        const label = job?.address || job?.name || "this job";
 
-        if (!confirmDelete) {
+        const confirmed = await confirm({
+            title: `Delete ${label}?`,
+            message:
+                "This permanently deletes it, along with its measurements, invoices and uploaded plans. This can't be undone.",
+            confirmLabel: "Delete",
+            destructive: true,
+        });
+
+        if (!confirmed) {
             return;
         }
 
         try {
             const response = await fetch(
-                `http://localhost:3001/api/quoted-jobs/${id}`,
+                `/api/quoted-jobs/${id}`,
                 {
                     method: "DELETE",
                 },
@@ -356,35 +419,42 @@ export default function JobsPage() {
 
             if (!response.ok) {
                 throw new Error(
-                    "Failed to delete quote",
+                    "Failed to delete job",
                 );
             }
 
             setQuotedJobs(
                 (currentJobs) =>
                     currentJobs.filter(
-                        (job) =>
-                            job.id !== id,
+                        (item) =>
+                            item.id !== id,
                     ),
             );
+
+            toast(`Deleted ${label}.`);
         } catch (error) {
             console.error(
-                "Failed to delete quote:",
+                "Failed to delete job:",
                 error,
             );
+
+            toast({
+                message: `Couldn't delete ${label}. Nothing was changed.`,
+                tone: "error",
+            });
         }
     }
 
     if (loading) {
         return (
-            <p className="p-6">
-                Loading jobs...
-            </p>
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <TableSkeleton rows={10} columns={5} />
+            </div>
         );
     }
 
     return (
-        <main className="min-h-screen bg-gray-50 p-8">
+        <div>
             <div className="mb-8">
                 <p className="text-sm font-medium text-gray-500">
                     Jobs
@@ -403,12 +473,8 @@ export default function JobsPage() {
             <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 px-6 py-4">
                     <div>
-                        <h2 className="text-lg font-semibold text-gray-900">
-                            Jobs
-                        </h2>
-
-                        <p className="mt-1 text-sm text-gray-500">
-                            {quotedJobs.length} jobs total.
+                        <p className="text-sm text-gray-500">
+                            {quotedJobs.length} jobs in total.
                         </p>
                     </div>
 
@@ -421,7 +487,7 @@ export default function JobsPage() {
                         }
                         className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
                     >
-                        Add Quote
+                        New job
                     </button>
                 </div>
 
@@ -505,8 +571,8 @@ export default function JobsPage() {
                                     Name
                                 </th>
 
-                                <th className="px-6 py-3 font-semibold">
-                                    Quoted Amount Incl. GST
+                                <th className="whitespace-nowrap px-6 py-3 text-right font-semibold">
+                                    Amount inc GST
                                 </th>
 
                                 <th className="px-6 py-3 font-semibold">
@@ -519,6 +585,10 @@ export default function JobsPage() {
 
                                 <th className="px-6 py-3 font-semibold">
                                     Status
+                                </th>
+
+                                <th className="px-6 py-3 text-center font-semibold">
+                                    Invoiced
                                 </th>
 
                                 <th className="px-6 py-3 font-semibold">
@@ -537,7 +607,7 @@ export default function JobsPage() {
                                         {job.name}
                                     </td>
 
-                                    <td className="px-6 py-4 text-gray-700">
+                                    <td className="whitespace-nowrap px-6 py-4 text-right tabular-nums text-gray-700">
                                         {formatCurrency(
                                             job.inclGst,
                                         )}
@@ -547,14 +617,8 @@ export default function JobsPage() {
                                         {job.address}
                                     </td>
 
-                                    <td className="px-6 py-4 text-gray-700">
-                                        {job.date
-                                            ? new Date(
-                                                  job.date,
-                                              ).toLocaleDateString(
-                                                  "en-AU",
-                                              )
-                                            : "—"}
+                                    <td className="whitespace-nowrap px-6 py-4 text-gray-700">
+                                        {formatDate(job.date)}
                                     </td>
 
                                     <td className="px-6 py-4">
@@ -586,6 +650,24 @@ export default function JobsPage() {
                                         </select>
                                     </td>
 
+                                    <td className="px-6 py-4 text-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(
+                                                job.invoiced,
+                                            )}
+                                            onChange={(event) =>
+                                                void handleInvoicedChange(
+                                                    job.id,
+                                                    event.target
+                                                        .checked,
+                                                )
+                                            }
+                                            aria-label={`Invoiced: ${job.address || job.name}`}
+                                            className="h-4 w-4 cursor-pointer"
+                                        />
+                                    </td>
+
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <NavLink
@@ -595,23 +677,19 @@ export default function JobsPage() {
                                                 View
                                             </NavLink>
 
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    void handleDeleteQuote(
-                                                        job.id,
-                                                    )
-                                                }
-                                                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
-                                            >
-                                                <img
-                                                    src={
-                                                        deleteicon
-                                                    }
-                                                    alt="Delete"
-                                                    className="h-5 w-5"
-                                                />
-                                            </button>
+                                            <RowMenu
+                                                label={`More actions for ${job.address || job.name}`}
+                                                items={[
+                                                    {
+                                                        label: "Delete…",
+                                                        destructive: true,
+                                                        onSelect: () =>
+                                                            void handleDeleteQuote(
+                                                                job.id,
+                                                            ),
+                                                    },
+                                                ]}
+                                            />
                                         </div>
                                     </td>
                                 </tr>
@@ -620,7 +698,7 @@ export default function JobsPage() {
                             {filteredJobs.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan={6}
+                                        colSpan={7}
                                         className="px-6 py-10 text-center text-sm text-gray-500"
                                     >
                                         {searchTerm ||
@@ -646,6 +724,6 @@ export default function JobsPage() {
                     handleCreateQuote
                 }
             />
-        </main>
+        </div>
     );
 }

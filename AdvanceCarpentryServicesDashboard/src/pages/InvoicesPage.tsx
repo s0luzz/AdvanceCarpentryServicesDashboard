@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 
+import InvoiceDialog, {
+    INVOICE_STATUSES,
+    type InvoiceStatus,
+    type NewInvoicePayload,
+} from "../components/invoices/InvoiceDialog";
 import { generateInvoicePdf } from "../components/invoices/generateInvoicePdf";
+import { useFeedback } from "../components/ui/Feedback";
+import { TableSkeleton } from "../components/ui/Skeleton";
+import { formatCurrency, formatDate } from "../lib/format";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 type Invoice = {
     id: string;
@@ -11,6 +20,7 @@ type Invoice = {
     gst: number;
     amountExGst: number;
     amountPaidToDate: number;
+    status?: string;
     date: string;
 };
 
@@ -26,12 +36,21 @@ type InvoiceRow = {
     invoice: Invoice;
 };
 
-const API_URL = "http://localhost:3001";
+const API_URL = "";
 
 export default function InvoicesPage() {
+    const { toast } = useFeedback();
+    useDocumentTitle("Invoices");
+
     const [jobs, setJobs] = useState<QuotedJob[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState<
+        InvoiceStatus | "All"
+    >("All");
+    const [isAddOpen, setIsAddOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [addError, setAddError] = useState("");
 
     async function fetchJobs() {
         try {
@@ -55,6 +74,11 @@ export default function InvoicesPage() {
                 "Failed to fetch invoices:",
                 error,
             );
+
+            toast({
+                message: "Couldn't load invoices. Try refreshing the page.",
+                tone: "error",
+            });
         } finally {
             setLoading(false);
         }
@@ -64,26 +88,6 @@ export default function InvoicesPage() {
         void fetchJobs();
     }, []);
 
-    function formatCurrency(value: number) {
-        return `$${value.toLocaleString("en-AU", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
-    }
-
-    function formatDate(value: string) {
-        const date = new Date(value);
-
-        if (Number.isNaN(date.getTime())) {
-            return "—";
-        }
-
-        return date.toLocaleDateString("en-AU", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        });
-    }
 
     const rows = useMemo<InvoiceRow[]>(() => {
         return jobs
@@ -100,14 +104,112 @@ export default function InvoicesPage() {
             );
     }, [jobs]);
 
+    async function handleAddInvoice(payload: NewInvoicePayload) {
+        const { jobId, ...body } = payload;
+
+        if (!jobId) {
+            return;
+        }
+
+        setIsSaving(true);
+        setAddError("");
+
+        try {
+            const response = await fetch(
+                `${API_URL}/api/quoted-jobs/${jobId}/invoices`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                },
+            );
+
+            const result = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                throw new Error(
+                    result?.message ?? "Couldn't add the invoice.",
+                );
+            }
+
+            await fetchJobs();
+            setIsAddOpen(false);
+            toast(`Added invoice #${result.invoiceNumber}.`);
+        } catch (error) {
+            setAddError(
+                error instanceof Error
+                    ? error.message
+                    : "Couldn't add the invoice.",
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    async function handleStatusChange(
+        jobId: string,
+        invoiceId: string,
+        status: InvoiceStatus,
+    ) {
+        const previous = jobs
+            .find((job) => job.id === jobId)
+            ?.invoices?.find((invoice) => invoice.id === invoiceId)
+            ?.status;
+
+        const apply = (value?: string) =>
+            setJobs((current) =>
+                current.map((job) =>
+                    job.id !== jobId
+                        ? job
+                        : {
+                              ...job,
+                              invoices: job.invoices?.map((invoice) =>
+                                  invoice.id === invoiceId
+                                      ? { ...invoice, status: value }
+                                      : invoice,
+                              ),
+                          },
+                ),
+            );
+
+        apply(status);
+
+        try {
+            const response = await fetch(
+                `${API_URL}/api/quoted-jobs/${jobId}/invoices/${invoiceId}`,
+                {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status }),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error("Failed to update status");
+            }
+        } catch {
+            apply(previous);
+            toast({
+                message: "Couldn't update the status. It's been put back.",
+                tone: "error",
+            });
+        }
+    }
+
     const filteredRows = useMemo(() => {
         const search = searchTerm.trim().toLowerCase();
 
+        const byStatus = rows.filter(
+            ({ invoice }) =>
+                statusFilter === "All" ||
+                (invoice.status ?? "Sent") === statusFilter,
+        );
+
         if (!search) {
-            return rows;
+            return byStatus;
         }
 
-        return rows.filter(({ job, invoice }) => {
+        return byStatus.filter(({ job, invoice }) => {
             return (
                 job.name.toLowerCase().includes(search) ||
                 job.address.toLowerCase().includes(search) ||
@@ -119,14 +221,18 @@ export default function InvoicesPage() {
                 )
             );
         });
-    }, [rows, searchTerm]);
+    }, [rows, searchTerm, statusFilter]);
 
     if (loading) {
-        return <p className="p-6">Loading invoices...</p>;
+        return (
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <TableSkeleton rows={8} columns={5} />
+            </div>
+        );
     }
 
     return (
-        <main className="min-h-screen bg-gray-50 p-8">
+        <div>
             <div className="mb-8">
                 <p className="text-sm font-medium text-gray-500">
                     Invoices
@@ -153,6 +259,17 @@ export default function InvoicesPage() {
                             {rows.length === 1 ? "" : "s"} issued.
                         </p>
                     </div>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setAddError("");
+                            setIsAddOpen(true);
+                        }}
+                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                    >
+                        Add invoice
+                    </button>
                 </div>
 
                 <div className="border-b border-gray-200 px-6 py-4">
@@ -191,6 +308,26 @@ export default function InvoicesPage() {
                     </div>
                 </div>
 
+                <div className="flex flex-wrap gap-2 border-b border-gray-200 px-6 py-3">
+                    {(["All", ...INVOICE_STATUSES] as const).map(
+                        (item) => (
+                            <button
+                                key={item}
+                                type="button"
+                                onClick={() => setStatusFilter(item)}
+                                aria-pressed={statusFilter === item}
+                                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                                    statusFilter === item
+                                        ? "bg-gray-900 text-white"
+                                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                                }`}
+                            >
+                                {item}
+                            </button>
+                        ),
+                    )}
+                </div>
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
@@ -207,8 +344,11 @@ export default function InvoicesPage() {
                                 <th className="px-6 py-3 font-semibold">
                                     Date
                                 </th>
+                                <th className="whitespace-nowrap px-6 py-3 text-right font-semibold">
+                                    Amount inc GST
+                                </th>
                                 <th className="px-6 py-3 font-semibold">
-                                    Amount Inc GST
+                                    Status
                                 </th>
                                 <th className="px-6 py-3 font-semibold">
                                     Quick Action
@@ -242,14 +382,36 @@ export default function InvoicesPage() {
                                         {invoice.description}
                                     </td>
 
-                                    <td className="px-6 py-4 text-gray-700">
+                                    <td className="whitespace-nowrap px-6 py-4 text-gray-700">
                                         {formatDate(invoice.date)}
                                     </td>
 
-                                    <td className="px-6 py-4 text-gray-700">
+                                    <td className="whitespace-nowrap px-6 py-4 text-right tabular-nums text-gray-700">
                                         {formatCurrency(
                                             invoice.amountIncGst,
                                         )}
+                                    </td>
+
+                                    <td className="px-6 py-4">
+                                        <select
+                                            value={invoice.status ?? "Sent"}
+                                            onChange={(event) =>
+                                                void handleStatusChange(
+                                                    job.id,
+                                                    invoice.id,
+                                                    event.target
+                                                        .value as InvoiceStatus,
+                                                )
+                                            }
+                                            aria-label={`Status of invoice ${invoice.invoiceNumber}`}
+                                            className="cursor-pointer rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                        >
+                                            {INVOICE_STATUSES.map((item) => (
+                                                <option key={item} value={item}>
+                                                    {item}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </td>
 
                                     <td className="px-6 py-4">
@@ -276,11 +438,11 @@ export default function InvoicesPage() {
                             {filteredRows.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan={6}
+                                        colSpan={7}
                                         className="px-6 py-10 text-center text-sm text-gray-500"
                                     >
-                                        {searchTerm
-                                            ? `No invoices found matching "${searchTerm}".`
+                                        {searchTerm || statusFilter !== "All"
+                                            ? "No invoices match the current search and filter."
                                             : "No invoices issued yet."}
                                     </td>
                                 </tr>
@@ -289,6 +451,19 @@ export default function InvoicesPage() {
                     </table>
                 </div>
             </section>
-        </main>
+
+            <InvoiceDialog
+                isOpen={isAddOpen}
+                isSubmitting={isSaving}
+                error={addError}
+                jobs={jobs.map(({ id, name, address }) => ({
+                    id,
+                    name,
+                    address,
+                }))}
+                onClose={() => setIsAddOpen(false)}
+                onSubmit={handleAddInvoice}
+            />
+        </div>
     );
 }

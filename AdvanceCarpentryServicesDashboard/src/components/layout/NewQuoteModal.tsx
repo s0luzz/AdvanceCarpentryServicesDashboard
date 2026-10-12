@@ -4,6 +4,7 @@ import {
     useEffect,
     useState,
 } from "react";
+import { formatCurrency } from "../../lib/format";
 
 export type QuoteStatus =
     | "Quoted"
@@ -164,7 +165,7 @@ function NewQuoteModal({
         if (mode === "create") {
             resetForm();
 
-            fetch("http://localhost:3001/api/counters")
+            fetch("/api/counters")
                 .then((response) => response.json())
                 .then((counters) =>
                     setNextQuoteNumber(
@@ -606,7 +607,7 @@ function NewQuoteModal({
                                 </div>
 
                                 <div className="rounded-lg bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
-                                    Hebel Cost: ${hebelCost.toLocaleString()}
+                                    Hebel Cost: {formatCurrency(hebelCost)}
                                 </div>
                             </div>
                         )}
@@ -692,15 +693,15 @@ function NewQuoteModal({
                     <div className="flex flex-col gap-3 pt-3">
                         <div className="grid gap-2 text-sm text-gray-700 sm:grid-cols-3">
                             <h2 className="rounded-lg bg-gray-50 px-4 py-2 font-medium">
-                                Cost: ${finalCost.toLocaleString()}
+                                Cost: {formatCurrency(finalCost)}
                             </h2>
 
                             <h2 className="rounded-lg bg-gray-50 px-4 py-2 font-medium">
-                                GST: ${(finalCost * 0.1).toLocaleString()}
+                                GST: {formatCurrency(finalCost * 0.1)}
                             </h2>
 
                             <h2 className="rounded-lg bg-gray-50 px-4 py-2 font-medium">
-                                Incl GST: ${(finalCost * 1.1).toLocaleString()}
+                                Incl GST: {formatCurrency(finalCost * 1.1)}
                             </h2>
                         </div>
 

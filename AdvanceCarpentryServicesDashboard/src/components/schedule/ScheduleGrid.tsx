@@ -41,6 +41,29 @@ type ScheduleGridProps = {
 
 const LABEL_WIDTH = "w-44";
 
+// One colour per builder (the job's customer), stable across page loads.
+const BUILDER_COLOURS = [
+    { bar: "bg-blue-600", dot: "bg-blue-600" },
+    { bar: "bg-emerald-600", dot: "bg-emerald-600" },
+    { bar: "bg-violet-600", dot: "bg-violet-600" },
+    { bar: "bg-amber-600", dot: "bg-amber-600" },
+    { bar: "bg-rose-600", dot: "bg-rose-600" },
+    { bar: "bg-cyan-700", dot: "bg-cyan-700" },
+    { bar: "bg-orange-600", dot: "bg-orange-600" },
+    { bar: "bg-teal-700", dot: "bg-teal-700" },
+];
+
+function builderColour(name: string | undefined) {
+    const key = (name ?? "").trim().toLowerCase();
+    let hash = 0;
+
+    for (const char of key) {
+        hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+    }
+
+    return BUILDER_COLOURS[hash % BUILDER_COLOURS.length];
+}
+
 function computeDrag(drag: Drag, col: number): Drag {
     if (drag.kind === "create") {
         return {
@@ -109,6 +132,12 @@ export default function ScheduleGrid({
             (row) =>
                 row.job && row.start <= columns - 1 && row.end >= 0,
         );
+
+    const legend = [
+        ...new Set(rows.map((row) => row.job?.name).filter(Boolean)),
+    ]
+        .sort()
+        .map((name) => ({ name: name as string, dot: builderColour(name).dot }));
 
     const scheduledJobIds = new Set(entries.map((entry) => entry.jobId));
     const pickable = jobs
@@ -185,6 +214,7 @@ export default function ScheduleGrid({
         end: number,
         options: { preview?: boolean; row?: (typeof rows)[number] } = {},
     ) {
+        const colour = builderColour(options.row?.job?.name);
         const visibleStart = Math.max(start, 0);
         const visibleEnd = Math.min(end, columns - 1);
         const entryId = options.row?.entry.id;
@@ -206,15 +236,20 @@ export default function ScheduleGrid({
                               })
                         : undefined
                 }
-                className={`absolute top-1 bottom-1 flex items-center justify-center rounded border border-black/40 text-[11px] font-semibold text-white ${
-                    options.preview ? "bg-blue-500/60" : "bg-blue-600"
+                className={`absolute top-1 bottom-1 flex items-center justify-center overflow-hidden rounded border border-black/40 text-[11px] font-semibold text-white ${
+                    options.preview ? "bg-blue-500/60" : colour.bar
                 } ${interactive && !options.preview ? "cursor-grab active:cursor-grabbing" : "pointer-events-none"}`}
                 style={{
                     left: `${(visibleStart / columns) * 100}%`,
                     width: `${((visibleEnd - visibleStart + 1) / columns) * 100}%`,
                 }}
             >
-                {end - start + 1}d
+                <span className="truncate px-2">
+                    {options.row?.job?.name
+                        ? `${options.row.job.name} · `
+                        : ""}
+                    {end - start + 1}d
+                </span>
 
                 {interactive && entryId && options.row && (
                     <>
@@ -334,9 +369,9 @@ export default function ScheduleGrid({
                             <NavLink
                                 to={`/jobs/${row.entry.jobId}`}
                                 title="Open job details"
-                                className={`${LABEL_WIDTH} ${rowHeight} flex shrink-0 flex-col justify-center border border-slate-400 px-2 text-center hover:bg-blue-500/10`}
+                                className={`${LABEL_WIDTH} ${rowHeight} flex shrink-0 flex-col justify-center border border-slate-400 px-2 text-left hover:bg-blue-500/10`}
                             >
-                                <span className="line-clamp-2 text-xs font-bold leading-tight text-slate-900">
+                                <span className="line-clamp-2 text-xs font-medium leading-tight text-slate-900">
                                     {row.job?.address}
                                 </span>
                                 {!compact && (
@@ -443,6 +478,21 @@ export default function ScheduleGrid({
                             )}
                         </div>
                     </div>
+                )}
+                {legend.length > 0 && (
+                    <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                        {legend.map((item) => (
+                            <li
+                                key={item.name}
+                                className="flex items-center gap-1.5"
+                            >
+                                <span
+                                    className={`h-2.5 w-2.5 rounded-sm ${item.dot}`}
+                                />
+                                {item.name}
+                            </li>
+                        ))}
+                    </ul>
                 )}
             </div>
         </div>

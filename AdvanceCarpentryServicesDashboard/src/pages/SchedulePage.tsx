@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 
+import { useFeedback } from "../components/ui/Feedback";
+import { TableSkeleton } from "../components/ui/Skeleton";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 import ScheduleGrid from "../components/schedule/ScheduleGrid";
 import { exportSchedulePdf } from "../components/schedule/exportSchedulePdf";
 import {
@@ -15,7 +18,7 @@ import {
     type ScheduleJob,
 } from "../components/schedule/scheduleUtils";
 
-const API = "http://localhost:3001/api";
+const API = "/api";
 const WEEKS = 4;
 
 async function request(url: string, init?: RequestInit) {
@@ -38,6 +41,9 @@ function jsonInit(method: string, body: unknown): RequestInit {
 }
 
 function SchedulePage() {
+    const { toast } = useFeedback();
+    useDocumentTitle("Schedule");
+
     const [entries, setEntries] = useState<ScheduleEntry[]>([]);
     const [jobs, setJobs] = useState<ScheduleJob[]>([]);
     const [loading, setLoading] = useState(true);
@@ -57,6 +63,10 @@ function SchedulePage() {
             setEntries(loadedEntries);
         } catch (error) {
             console.error("Failed to load schedule:", error);
+            toast({
+                message: "Couldn't load the schedule. Try refreshing the page.",
+                tone: "error",
+            });
         } finally {
             setLoading(false);
         }
@@ -68,9 +78,13 @@ function SchedulePage() {
 
     function fail(error: unknown) {
         console.error(error);
-        window.alert(
-            error instanceof Error ? error.message : "Something went wrong.",
-        );
+        toast({
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Something went wrong.",
+            tone: "error",
+        });
         void load();
     }
 
@@ -158,11 +172,15 @@ function SchedulePage() {
         : 0;
 
     if (loading) {
-        return <p className="p-6">Loading schedule...</p>;
+        return (
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <TableSkeleton rows={7} columns={4} />
+            </div>
+        );
     }
 
     return (
-        <main className="min-h-screen bg-gray-50 p-8">
+        <div>
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-semibold text-gray-900">
@@ -289,7 +307,7 @@ function SchedulePage() {
                     </div>
                 </div>
             )}
-        </main>
+        </div>
     );
 }
 

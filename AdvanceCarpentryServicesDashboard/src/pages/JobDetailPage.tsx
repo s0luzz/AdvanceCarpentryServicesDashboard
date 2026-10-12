@@ -5,6 +5,7 @@ import {
     useState,
 } from "react";
 import {
+    NavLink,
     useNavigate,
     useParams,
 } from "react-router-dom";
@@ -13,11 +14,15 @@ import NewQuoteModal, {
     type NewQuoteFormData,
     type QuoteStatus,
 } from "../components/layout/NewQuoteModal";
-import PdfViewer from "../components/PdfViewer";
+import { useFeedback } from "../components/ui/Feedback";
+import RowMenu from "../components/ui/RowMenu";
+import { CardSkeleton } from "../components/ui/Skeleton";
 import InvoiceDialog, {
     type NewInvoicePayload,
 } from "../components/invoices/InvoiceDialog";
 import { generateInvoicePdf } from "../components/invoices/generateInvoicePdf";
+import { formatCurrency } from "../lib/format";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 type AttachedFile = {
     id: string;
@@ -39,6 +44,7 @@ type Invoice = {
     gst: number;
     amountExGst: number;
     amountPaidToDate: number;
+    status?: string;
     date: string;
 };
 
@@ -71,9 +77,10 @@ type Job = {
     steel: number;
     files: AttachedFile[];
     invoices?: Invoice[];
+    invoiced?: boolean;
 };
 
-const API_URL = "http://localhost:3001";
+const API_URL = "";
 
 function JobDetailPage() {
     const { jobId } = useParams<{
@@ -81,12 +88,15 @@ function JobDetailPage() {
     }>();
 
     const navigate = useNavigate();
+    const { toast, confirm } = useFeedback();
 
     const fileInputRef =
         useRef<HTMLInputElement>(null);
 
     const [jobDetails, setJobDetails] =
         useState<Job>();
+
+    useDocumentTitle(jobDetails?.name ?? "Job");
 
     const [loading, setLoading] =
         useState(true);
@@ -95,13 +105,6 @@ function JobDetailPage() {
         isEditQuoteModalOpen,
         setIsEditQuoteModalOpen,
     ] = useState(false);
-
-    const [
-        selectedFile,
-        setSelectedFile,
-    ] = useState<AttachedFile | null>(
-        null,
-    );
 
     const [
         isUploading,
@@ -164,6 +167,11 @@ function JobDetailPage() {
                 "Failed to fetch job details:",
                 error,
             );
+
+            toast({
+                message: "Couldn't load this job. Try refreshing the page.",
+                tone: "error",
+            });
 
             setJobDetails(undefined);
         } finally {
@@ -232,6 +240,11 @@ function JobDetailPage() {
                 "Failed to update quote:",
                 error,
             );
+
+            toast({
+                message: "Couldn't save your changes to this quote.",
+                tone: "error",
+            });
         }
     }
 
@@ -282,6 +295,7 @@ function JobDetailPage() {
 
                     return {
                         ...currentJob,
+                        invoiced: true,
                         invoices: [
                             ...(currentJob.invoices ??
                                 []),
@@ -302,6 +316,44 @@ function JobDetailPage() {
             );
         } finally {
             setIsCreatingInvoice(false);
+        }
+    }
+
+    async function handleToggleInvoiced() {
+        if (!jobId || !jobDetails) {
+            return;
+        }
+
+        const next = !jobDetails.invoiced;
+
+        setJobDetails((current) =>
+            current ? { ...current, invoiced: next } : current,
+        );
+
+        try {
+            const response = await fetch(
+                `${API_URL}/api/quoted-jobs/${jobId}`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ invoiced: next }),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error("Failed to update");
+            }
+        } catch {
+            setJobDetails((current) =>
+                current ? { ...current, invoiced: !next } : current,
+            );
+
+            toast({
+                message: "Couldn't update the Invoiced tick. It's been put back.",
+                tone: "error",
+            });
         }
     }
 
@@ -438,10 +490,13 @@ function JobDetailPage() {
             return;
         }
 
-        const confirmed =
-            window.confirm(
-                `Delete "${file.originalName}" from this job?`,
-            );
+        const confirmed = await confirm({
+            title: `Delete "${file.originalName}"?`,
+            message:
+                "It's removed from this job and from the server, along with any measurements saved against it. This can't be undone.",
+            confirmLabel: "Delete file",
+            destructive: true,
+        });
 
         if (!confirmed) {
             return;
@@ -490,12 +545,6 @@ function JobDetailPage() {
                 },
             );
 
-            if (
-                selectedFile?.id ===
-                file.id
-            ) {
-                setSelectedFile(null);
-            }
         } catch (error) {
             setFileError(
                 error instanceof Error
@@ -505,6 +554,14 @@ function JobDetailPage() {
         } finally {
             setDeletingFileId(null);
         }
+    }
+
+    function openViewer(file: AttachedFile) {
+        if (!jobId) {
+            return;
+        }
+
+        navigate(`/jobs/${jobId}/takeoff/${file.id}`);
     }
 
     function openOverlayMarkup() {
@@ -535,17 +592,6 @@ function JobDetailPage() {
         }
 
         return `${API_URL}${filePath}`;
-    }
-
-    function formatCurrency(
-        value: number | undefined,
-    ) {
-        return `$${(
-            value ?? 0
-        ).toLocaleString("en-AU", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
     }
 
     function formatNumber(
@@ -602,60 +648,52 @@ function JobDetailPage() {
 
     if (loading) {
         return (
-            <p className="p-6">
-                Loading job details...
-            </p>
+            <div className="mx-auto max-w-7xl space-y-6">
+                <CardSkeleton lines={6} />
+                <CardSkeleton lines={4} />
+            </div>
         );
     }
 
     if (!jobId) {
         return (
-            <main className="min-h-screen bg-gray-50 p-8">
+            <div>
                 <div className="mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
                     A job ID was not
                     provided.
                 </div>
-            </main>
-        );
-    }
-
-    if (selectedFile) {
-        return (
-            <main className="min-h-screen bg-gray-100 p-4">
-                <PdfViewer
-                    jobId={jobId}
-                    fileId={selectedFile.id}
-                    file={getFileUrl(
-                        selectedFile,
-                    )}
-                    onClose={() =>
-                        setSelectedFile(
-                            null,
-                        )
-                    }
-                />
-            </main>
+            </div>
         );
     }
 
     return (
-        <main className="min-h-screen bg-gray-50 p-8">
+        <div>
             <div className="mx-auto max-w-7xl">
-                <h1 className="text-3xl font-semibold text-gray-900">
-                    Job Details
-                </h1>
+                <nav
+                    aria-label="Breadcrumb"
+                    className="flex items-center gap-2 text-sm text-gray-500"
+                >
+                    <NavLink
+                        to="/jobs"
+                        className="font-medium hover:text-gray-900 hover:underline"
+                    >
+                        Jobs
+                    </NavLink>
 
-                <section className="mt-8 rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <span aria-hidden="true">›</span>
+
+                    <span className="truncate text-gray-700">
+                        {jobDetails?.name ?? "Job"}
+                    </span>
+                </nav>
+
+                <section className="mt-4 rounded-xl border border-gray-200 bg-white shadow-sm">
                     <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-200 px-6 py-4">
                         <div>
-                            <p className="text-sm font-medium text-gray-500">
-                                Quote Details
-                            </p>
-
-                            <h2 className="mt-1 text-xl font-semibold text-gray-900">
+                            <h1 className="text-2xl font-semibold text-gray-900">
                                 {jobDetails?.name ??
                                     "Job not found"}
-                            </h2>
+                            </h1>
 
                             <p className="mt-1 text-sm text-gray-600">
                                 {jobDetails?.address ??
@@ -667,6 +705,22 @@ function JobDetailPage() {
                                     {jobDetails?.status ??
                                         "Quoted"}
                                 </span>
+
+                                {jobDetails && (
+                                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(
+                                                jobDetails.invoiced,
+                                            )}
+                                            onChange={() =>
+                                                void handleToggleInvoiced()
+                                            }
+                                            className="h-3.5 w-3.5 cursor-pointer"
+                                        />
+                                        Invoiced
+                                    </label>
+                                )}
 
                                 {jobDetails?.quoteNumber && (
                                     <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
@@ -1102,9 +1156,7 @@ function JobDetailPage() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() =>
-                                                                        setSelectedFile(
-                                                                            file,
-                                                                        )
+                                                                        openViewer(file)
                                                                     }
                                                                     className="block max-w-full truncate text-left font-medium text-gray-900 hover:underline"
                                                                 >
@@ -1135,9 +1187,7 @@ function JobDetailPage() {
                                                                     <button
                                                                         type="button"
                                                                         onClick={() =>
-                                                                            setSelectedFile(
-                                                                                file,
-                                                                            )
+                                                                            openViewer(file)
                                                                         }
                                                                         className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
                                                                     >
@@ -1155,24 +1205,29 @@ function JobDetailPage() {
                                                                         New tab
                                                                     </a>
 
-                                                                    <button
-                                                                        type="button"
-                                                                        disabled={
-                                                                            deletingFileId ===
-                                                                            file.id
-                                                                        }
-                                                                        onClick={() =>
-                                                                            void handleDeleteFile(
-                                                                                file,
-                                                                            )
-                                                                        }
-                                                                        className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                                                    >
-                                                                        {deletingFileId ===
-                                                                        file.id
-                                                                            ? "Deleting..."
-                                                                            : "Delete"}
-                                                                    </button>
+                                                                    <RowMenu
+                                                                        label={`More actions for ${file.originalName}`}
+                                                                        items={[
+                                                                            {
+                                                                                label:
+                                                                                    deletingFileId ===
+                                                                                    file.id
+                                                                                        ? "Deleting…"
+                                                                                        : "Delete…",
+                                                                                destructive: true,
+                                                                                onSelect: () => {
+                                                                                    if (
+                                                                                        deletingFileId !==
+                                                                                        file.id
+                                                                                    ) {
+                                                                                        void handleDeleteFile(
+                                                                                            file,
+                                                                                        );
+                                                                                    }
+                                                                                },
+                                                                            },
+                                                                        ]}
+                                                                    />
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -1301,6 +1356,14 @@ function JobDetailPage() {
                 isOpen={isInvoiceDialogOpen}
                 isSubmitting={isCreatingInvoice}
                 error={invoiceError}
+                job={
+                    jobDetails
+                        ? {
+                              name: jobDetails.name,
+                              address: jobDetails.address,
+                          }
+                        : undefined
+                }
                 onClose={() =>
                     setIsInvoiceDialogOpen(false)
                 }
@@ -1327,7 +1390,7 @@ function JobDetailPage() {
                     mode="edit"
                 />
             )}
-        </main>
+        </div>
     );
 }
 

@@ -7,8 +7,20 @@ import { promises as fs } from "fs";
 import { existsSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 
+import {
+    COOKIE_NAME,
+    clientIp,
+    hasPassword,
+    isValidSession,
+    lockoutRemainingMs,
+    login,
+    logout,
+    parseCookies,
+    sessionCookie,
+} from "./auth.js";
+
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +45,84 @@ if (!existsSync(uploadsPath)) {
 
 app.use(cors());
 app.use(express.json());
+
+/**
+ * Auth: everything under /api and /uploads needs a signed-in session,
+ * except the auth endpoints themselves.
+ */
+app.post("/api/auth/login", async (req, res) => {
+    try {
+        const ip = clientIp(req);
+        const lockedMs = lockoutRemainingMs(ip);
+
+        if (lockedMs > 0) {
+            return res.status(429).json({
+                message: `Too many attempts. Try again in ${Math.ceil(lockedMs / 60000)} minute(s).`,
+            });
+        }
+
+        if (!(await hasPassword())) {
+            return res.status(503).json({
+                message:
+                    "No password has been set yet. On the computer running the server, run: npm run set-password",
+            });
+        }
+
+        const token = await login(req.body?.password, ip);
+
+        if (!token) {
+            return res
+                .status(401)
+                .json({ message: "Incorrect password." });
+        }
+
+        res.setHeader("Set-Cookie", sessionCookie(token, req));
+        return res.json({ authenticated: true });
+    } catch (error) {
+        console.error("Login failed:", error);
+        return res.status(500).json({ message: "Login failed" });
+    }
+});
+
+app.post("/api/auth/logout", async (req, res) => {
+    try {
+        await logout(parseCookies(req.headers.cookie)[COOKIE_NAME]);
+        res.setHeader("Set-Cookie", sessionCookie("", req, 0));
+        return res.json({ authenticated: false });
+    } catch (error) {
+        console.error("Logout failed:", error);
+        return res.status(500).json({ message: "Logout failed" });
+    }
+});
+
+app.get("/api/auth/me", async (req, res) => {
+    const token = parseCookies(req.headers.cookie)[COOKIE_NAME];
+
+    if (!(await isValidSession(token))) {
+        return res.status(401).json({
+            authenticated: false,
+            passwordSet: await hasPassword(),
+        });
+    }
+
+    return res.json({ authenticated: true });
+});
+
+app.use(async (req, res, next) => {
+    try {
+        const token = parseCookies(req.headers.cookie)[COOKIE_NAME];
+
+        if (await isValidSession(token)) {
+            return next();
+        }
+
+        return res
+            .status(401)
+            .json({ message: "Please sign in." });
+    } catch (error) {
+        return next(error);
+    }
+});
 
 app.use(
     "/uploads",
@@ -273,6 +363,9 @@ function toOptionalBoolean(
  * next counter value; a provided one is used as-is and advances the
  * counter so future auto-assigned numbers never fall behind it.
  */
+// Where an invoice is up to. (No "Draft": invoices here are already issued.)
+const INVOICE_STATUSES = ["Sent", "Paid", "Overdue"];
+
 function assignSequenceNumber(
     counters,
     counterKey,
@@ -954,6 +1047,13 @@ app.patch(
                     existingQuote.status ??
                     "Quoted",
 
+                invoiced:
+                    typeof req.body.invoiced ===
+                    "boolean"
+                        ? req.body.invoiced
+                        : (existingQuote.invoiced ??
+                          false),
+
                 quotedAmount:
                     toOptionalNumber(
                         req.body
@@ -1161,16 +1261,23 @@ app.post(
                     });
             }
 
-            const description = (
-                req.body.description ?? ""
-            ).trim();
+            const description =
+                (
+                    req.body.description ?? ""
+                ).trim() || "Invoice";
 
-            if (!description) {
+            const status =
+                req.body.status ?? "Sent";
+
+            if (
+                !INVOICE_STATUSES.includes(
+                    status,
+                )
+            ) {
                 return res
                     .status(400)
                     .json({
-                        message:
-                            "Description is required.",
+                        message: `Status must be one of: ${INVOICE_STATUSES.join(", ")}.`,
                     });
             }
 
@@ -1272,6 +1379,7 @@ app.post(
                             100,
                     ) / 100,
                 amountPaidToDate,
+                status,
                 date:
                     req.body.date ||
                     new Date().toISOString(),
@@ -1283,6 +1391,8 @@ app.post(
                 ...priorInvoices,
                 newInvoice,
             ];
+            // Issuing an invoice means the job has been invoiced.
+            job.invoiced = true;
             job.updatedAt =
                 new Date().toISOString();
 
@@ -1302,6 +1412,74 @@ app.post(
                 .json({
                     message:
                         "Failed to create invoice",
+                });
+        }
+    },
+);
+
+/**
+ * Change an invoice's status (Sent / Paid / Overdue)
+ */
+app.patch(
+    "/api/quoted-jobs/:jobId/invoices/:invoiceId",
+    async (req, res) => {
+        try {
+            const db = await readDb();
+
+            const job = db.quotedJobs.find(
+                (item) =>
+                    item.id ===
+                    req.params.jobId,
+            );
+
+            const invoice = (
+                job?.invoices ?? []
+            ).find(
+                (item) =>
+                    item.id ===
+                    req.params.invoiceId,
+            );
+
+            if (!job || !invoice) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Invoice not found",
+                    });
+            }
+
+            if (
+                !INVOICE_STATUSES.includes(
+                    req.body.status,
+                )
+            ) {
+                return res
+                    .status(400)
+                    .json({
+                        message: `Status must be one of: ${INVOICE_STATUSES.join(", ")}.`,
+                    });
+            }
+
+            invoice.status =
+                req.body.status;
+            job.updatedAt =
+                new Date().toISOString();
+
+            await writeDb(db);
+
+            return res.json(invoice);
+        } catch (error) {
+            console.error(
+                "Failed to update invoice:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Failed to update invoice",
                 });
         }
     },

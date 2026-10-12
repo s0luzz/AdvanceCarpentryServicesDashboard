@@ -2,10 +2,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+const API_TARGET = process.env.API_TARGET ?? "http://localhost:3001";
+
 export default defineConfig({
     plugins: [react(),         tailwindcss(),],
 
     server: {
+        allowedHosts: ['.trycloudflare.com'],
         watch: {
             ignored: [
                 "**/db.json",
@@ -15,12 +18,12 @@ export default defineConfig({
 
         proxy: {
             "/api": {
-                target: "http://localhost:3001",
+                target: API_TARGET,
                 changeOrigin: true,
             },
 
             "/uploads": {
-                target: "http://localhost:3001",
+                target: API_TARGET,
                 changeOrigin: true,
             },
         },

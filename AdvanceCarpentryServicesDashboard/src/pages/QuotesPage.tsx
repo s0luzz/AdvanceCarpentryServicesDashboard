@@ -4,7 +4,11 @@ import { NavLink } from "react-router-dom";
 import NewQuoteModal, {
     type NewQuoteFormData,
 } from "../components/layout/NewQuoteModal";
-import deleteicon from "../assets/icons/delete.svg";
+import { useFeedback } from "../components/ui/Feedback";
+import RowMenu from "../components/ui/RowMenu";
+import { TableSkeleton } from "../components/ui/Skeleton";
+import { formatCurrency, formatDate } from "../lib/format";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 type QuotedJob = {
     id: string;
@@ -26,6 +30,9 @@ type QuotedJob = {
 };
 
 export default function QuotesPage() {
+    const { toast, confirm } = useFeedback();
+    useDocumentTitle("Quotes");
+
     const [quotedJobs, setQuotedJobs] = useState<QuotedJob[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -36,14 +43,10 @@ export default function QuotesPage() {
 
     const [searchTerm, setSearchTerm] = useState("");
 
-    function formatCurrency(value: number | undefined) {
-        return `$${(value ?? 0).toLocaleString()}`;
-    }
-
     async function fetchQuotedJobs() {
         try {
             const response = await fetch(
-                "http://localhost:3001/api/quoted-jobs",
+                "/api/quoted-jobs",
             );
 
             if (!response.ok) {
@@ -67,6 +70,11 @@ export default function QuotesPage() {
                 "Failed to fetch quoted jobs:",
                 error,
             );
+
+            toast({
+                message: "Couldn't load the list. Try refreshing the page.",
+                tone: "error",
+            });
         } finally {
             setLoading(false);
         }
@@ -76,21 +84,27 @@ export default function QuotesPage() {
         void fetchQuotedJobs();
     }, []);
 
+    // This page is for quotes still waiting on a decision; once a job moves
+    // on (cutting list, under construction, complete) it lives on Jobs.
+    const quotesOnly = useMemo(
+        () =>
+            quotedJobs.filter(
+                (job) => (job.status ?? "Quoted") === "Quoted",
+            ),
+        [quotedJobs],
+    );
+
     const filteredJobs = useMemo(() => {
         const search = searchTerm
             .trim()
             .toLowerCase();
 
         if (!search) {
-            return quotedJobs;
+            return quotesOnly;
         }
 
-        return quotedJobs.filter((job) => {
-            const formattedDate = job.date
-                ? new Date(job.date).toLocaleDateString(
-                      "en-AU",
-                  )
-                : "";
+        return quotesOnly.filter((job) => {
+            const formattedDate = formatDate(job.date);
 
             return (
                 job.name
@@ -107,7 +121,7 @@ export default function QuotesPage() {
                     .includes(search)
             );
         });
-    }, [quotedJobs, searchTerm]);
+    }, [quotesOnly, searchTerm]);
 
     async function handleCreateQuote(
         formData: NewQuoteFormData,
@@ -228,7 +242,7 @@ export default function QuotesPage() {
             });
 
             const response = await fetch(
-                "http://localhost:3001/api/quoted-jobs",
+                "/api/quoted-jobs",
                 {
                     method: "POST",
                     body: quoteData,
@@ -255,29 +269,37 @@ export default function QuotesPage() {
                 error,
             );
 
-            window.alert(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to save quote.",
-            );
+            toast({
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to save quote.",
+                tone: "error",
+            });
         }
     }
 
     async function handleDeleteQuote(
         id: string,
     ) {
-        const confirmDelete =
-            window.confirm(
-                "Are you sure you want to delete this quote?",
-            );
+        const job = quotedJobs.find((item) => item.id === id);
+        const label = job?.address || job?.name || "this quote";
 
-        if (!confirmDelete) {
+        const confirmed = await confirm({
+            title: `Delete ${label}?`,
+            message:
+                "This permanently deletes it, along with its measurements, invoices and uploaded plans. This can't be undone.",
+            confirmLabel: "Delete",
+            destructive: true,
+        });
+
+        if (!confirmed) {
             return;
         }
 
         try {
             const response = await fetch(
-                `http://localhost:3001/api/quoted-jobs/${id}`,
+                `/api/quoted-jobs/${id}`,
                 {
                     method: "DELETE",
                 },
@@ -292,28 +314,35 @@ export default function QuotesPage() {
             setQuotedJobs(
                 (currentJobs) =>
                     currentJobs.filter(
-                        (job) =>
-                            job.id !== id,
+                        (item) =>
+                            item.id !== id,
                     ),
             );
+
+            toast(`Deleted ${label}.`);
         } catch (error) {
             console.error(
                 "Failed to delete quote:",
                 error,
             );
+
+            toast({
+                message: `Couldn't delete ${label}. Nothing was changed.`,
+                tone: "error",
+            });
         }
     }
 
     if (loading) {
         return (
-            <p className="p-6">
-                Loading quoted jobs...
-            </p>
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <TableSkeleton rows={10} columns={5} />
+            </div>
         );
     }
 
     return (
-        <main className="min-h-screen bg-gray-50 p-8">
+        <div>
             <div className="mb-8">
                 <p className="text-sm font-medium text-gray-500">
                     Quotes
@@ -332,16 +361,11 @@ export default function QuotesPage() {
 
             <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 px-6 py-4">
-                    <div>
-                        <h2 className="text-lg font-semibold text-gray-900">
-                            Quoted Jobs
-                        </h2>
-
-                        <p className="mt-1 text-sm text-gray-500">
-                            {quotedJobs.length} jobs
-                            currently listed as quoted.
-                        </p>
-                    </div>
+                    <p className="text-sm text-gray-500">
+                        {quotesOnly.length} quote
+                        {quotesOnly.length === 1 ? "" : "s"} waiting
+                        on a decision.
+                    </p>
 
                     <button
                         type="button"
@@ -352,7 +376,7 @@ export default function QuotesPage() {
                         }
                         className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
                     >
-                        Add Quote
+                        New quote
                     </button>
                 </div>
 
@@ -404,7 +428,7 @@ export default function QuotesPage() {
                         <p className="mt-2 text-xs text-gray-500">
                             Showing{" "}
                             {filteredJobs.length} of{" "}
-                            {quotedJobs.length} jobs
+                            {quotesOnly.length} quotes
                         </p>
                     )}
                 </div>
@@ -417,8 +441,8 @@ export default function QuotesPage() {
                                     Name
                                 </th>
 
-                                <th className="px-6 py-3 font-semibold">
-                                    Quoted Amount Incl. GST
+                                <th className="whitespace-nowrap px-6 py-3 text-right font-semibold">
+                                    Amount inc GST
                                 </th>
 
                                 <th className="px-6 py-3 font-semibold">
@@ -449,7 +473,7 @@ export default function QuotesPage() {
                                         {job.name}
                                     </td>
 
-                                    <td className="px-6 py-4 text-gray-700">
+                                    <td className="whitespace-nowrap px-6 py-4 text-right tabular-nums text-gray-700">
                                         {formatCurrency(
                                             job.inclGst,
                                         )}
@@ -459,18 +483,12 @@ export default function QuotesPage() {
                                         {job.address}
                                     </td>
 
-                                    <td className="px-6 py-4 text-gray-700">
-                                        {job.date
-                                            ? new Date(
-                                                  job.date,
-                                              ).toLocaleDateString(
-                                                  "en-AU",
-                                              )
-                                            : "—"}
+                                    <td className="whitespace-nowrap px-6 py-4 text-gray-700">
+                                        {formatDate(job.date)}
                                     </td>
 
                                     <td className="px-6 py-4">
-                                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                                        <span className="whitespace-nowrap rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                                             {job.status ??
                                                 "Quoted"}
                                         </span>
@@ -485,23 +503,19 @@ export default function QuotesPage() {
                                                 View
                                             </NavLink>
 
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    void handleDeleteQuote(
-                                                        job.id,
-                                                    )
-                                                }
-                                                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
-                                            >
-                                                <img
-                                                    src={
-                                                        deleteicon
-                                                    }
-                                                    alt="Delete"
-                                                    className="h-5 w-5"
-                                                />
-                                            </button>
+                                            <RowMenu
+                                                label={`More actions for ${job.address || job.name}`}
+                                                items={[
+                                                    {
+                                                        label: "Delete…",
+                                                        destructive: true,
+                                                        onSelect: () =>
+                                                            void handleDeleteQuote(
+                                                                job.id,
+                                                            ),
+                                                    },
+                                                ]}
+                                            />
                                         </div>
                                     </td>
                                 </tr>
@@ -515,7 +529,7 @@ export default function QuotesPage() {
                                     >
                                         {searchTerm
                                             ? `No jobs found matching "${searchTerm}".`
-                                            : "No quoted jobs yet."}
+                                            : "No quotes waiting on a decision."}
                                     </td>
                                 </tr>
                             )}
@@ -535,6 +549,6 @@ export default function QuotesPage() {
                     handleCreateQuote
                 }
             />
-        </main>
+        </div>
     );
 }

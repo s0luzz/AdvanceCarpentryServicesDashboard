@@ -1,21 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 
 import ScheduleGrid from "../components/schedule/ScheduleGrid";
+import { useFeedback } from "../components/ui/Feedback";
+import { CardSkeleton } from "../components/ui/Skeleton";
+import { formatCurrency } from "../lib/format";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 import {
     mondayOfCurrentWeek,
     type ScheduleEntry,
     type ScheduleJob,
 } from "../components/schedule/scheduleUtils";
 
-const API = "http://localhost:3001/api";
+const API = "/api";
 const LEAD_WEEKS = 3;
 
 type Todo = {
     id: string;
     text: string;
     done: boolean;
+    createdAt?: string;
 };
+
+const UNDO_WINDOW_MS = 6000;
 
 async function todoRequest(url: string, init?: RequestInit) {
     const response = await fetch(url, init);
@@ -34,17 +41,17 @@ const PIPELINE_STATUSES = [
     "Complete",
 ] as const;
 
-function formatCurrency(value: number) {
-    return `$${Math.round(value).toLocaleString("en-AU")}`;
-}
-
 function DashboardPage() {
+    const { toast } = useFeedback();
+    useDocumentTitle("Dashboard");
+
     const [jobs, setJobs] = useState<ScheduleJob[]>([]);
     const [entries, setEntries] = useState<ScheduleEntry[]>([]);
     const [todos, setTodos] = useState<Todo[]>([]);
     const [newTodo, setNewTodo] = useState("");
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
+    const pendingDeletes = useRef(new Set<number>());
 
     useEffect(() => {
         async function load() {
@@ -89,6 +96,10 @@ function DashboardPage() {
         } catch (error) {
             console.error("Failed to add todo:", error);
             setNewTodo(text);
+            toast({
+                message: "Couldn't add that task. It's still in the box so you can retry.",
+                tone: "error",
+            });
         }
     }
 
@@ -112,31 +123,51 @@ function DashboardPage() {
         } catch (error) {
             console.error("Failed to update todo:", error);
             apply(todo.done);
+            toast({
+                message: "Couldn't update that task. It's been put back.",
+                tone: "error",
+            });
         }
     }
 
-    async function deleteTodo(id: string) {
-        const previous = todos;
-        setTodos((current) => current.filter((item) => item.id !== id));
-
-        try {
-            await todoRequest(`${API}/todos/${id}`, { method: "DELETE" });
-        } catch (error) {
-            console.error("Failed to delete todo:", error);
-            setTodos(previous);
+    // Deleting is instant on screen with an Undo; the server delete only
+    // happens once the Undo window has passed.
+    function removeTodos(items: Todo[], message: string) {
+        if (items.length === 0) {
+            return;
         }
-    }
 
-    async function clearDoneTodos() {
-        const previous = todos;
-        setTodos((current) => current.filter((item) => !item.done));
+        const ids = new Set(items.map((item) => item.id));
+        setTodos((current) => current.filter((item) => !ids.has(item.id)));
 
-        try {
-            await todoRequest(`${API}/todos`, { method: "DELETE" });
-        } catch (error) {
-            console.error("Failed to clear todos:", error);
-            setTodos(previous);
-        }
+        const timer = window.setTimeout(() => {
+            pendingDeletes.current.delete(timer);
+
+            items.forEach((item) => {
+                fetch(`${API}/todos/${item.id}`, { method: "DELETE" }).catch(
+                    () => undefined,
+                );
+            });
+        }, UNDO_WINDOW_MS);
+
+        pendingDeletes.current.add(timer);
+
+        toast({
+            message,
+            durationMs: UNDO_WINDOW_MS,
+            action: {
+                label: "Undo",
+                onClick: () => {
+                    window.clearTimeout(timer);
+                    pendingDeletes.current.delete(timer);
+                    setTodos((current) =>
+                        [...current, ...items].sort((a, b) =>
+                            (a.createdAt ?? "").localeCompare(b.createdAt ?? ""),
+                        ),
+                    );
+                },
+            },
+        });
     }
 
     const openTodos = todos.filter((todo) => !todo.done);
@@ -166,7 +197,7 @@ function DashboardPage() {
     });
 
     return (
-        <main className="min-h-screen bg-gray-50 p-8">
+        <div>
             <h1 className="text-3xl font-semibold text-gray-900">
                 Advance Carpentry Dashboard
             </h1>
@@ -176,7 +207,15 @@ function DashboardPage() {
             </p>
 
             {loading ? (
-                <p className="mt-8 text-gray-500">Loading...</p>
+                <div className="mt-8 space-y-6">
+                    <CardSkeleton lines={6} />
+
+                    <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                        <CardSkeleton />
+                        <CardSkeleton />
+                        <CardSkeleton />
+                    </div>
+                </div>
             ) : loadFailed ? (
                 <p className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     Couldn't reach the server, so nothing is shown here.
@@ -184,7 +223,7 @@ function DashboardPage() {
                 </p>
             ) : (
                 <div className="mt-8 space-y-6">
-                    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                         <div className="mb-4 flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-semibold text-gray-900">
@@ -213,7 +252,7 @@ function DashboardPage() {
                     </section>
 
                     <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold text-gray-900">
                                     Needs scheduling
@@ -256,7 +295,7 @@ function DashboardPage() {
                             )}
                         </section>
 
-                        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold text-gray-900">
                                     To-do
@@ -265,7 +304,12 @@ function DashboardPage() {
                                 {doneTodos.length > 0 && (
                                     <button
                                         type="button"
-                                        onClick={() => void clearDoneTodos()}
+                                        onClick={() =>
+                                            removeTodos(
+                                                doneTodos,
+                                                `Cleared ${doneTodos.length} done task${doneTodos.length === 1 ? "" : "s"}.`,
+                                            )
+                                        }
                                         className="text-xs font-medium text-gray-500 hover:text-gray-900"
                                     >
                                         Clear {doneTodos.length} done
@@ -322,9 +366,12 @@ function DashboardPage() {
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    void deleteTodo(todo.id)
+                                                    removeTodos(
+                                                        [todo],
+                                                        `Deleted "${todo.text}".`,
+                                                    )
                                                 }
-                                                className="shrink-0 text-lg leading-none text-gray-400 opacity-0 hover:text-red-600 group-hover:opacity-100 focus:opacity-100"
+                                                className="shrink-0 px-1 text-lg leading-none text-gray-400 hover:text-red-600"
                                                 aria-label={`Delete "${todo.text}"`}
                                             >
                                                 ×
@@ -335,7 +382,7 @@ function DashboardPage() {
                             )}
                         </section>
 
-                        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                             <h2 className="mb-4 text-lg font-semibold text-gray-900">
                                 Pipeline
                             </h2>
@@ -371,7 +418,7 @@ function DashboardPage() {
                     </div>
                 </div>
             )}
-        </main>
+        </div>
     );
 }
 

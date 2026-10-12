@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dashboard login (password hash + sessions)
+auth.json
+auth.json.tmp
