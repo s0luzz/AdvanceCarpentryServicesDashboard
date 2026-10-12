@@ -20,7 +20,7 @@ import { CardSkeleton } from "../components/ui/Skeleton";
 import InvoiceDialog, {
     type NewInvoicePayload,
 } from "../components/invoices/InvoiceDialog";
-import { generateInvoicePdf } from "../components/invoices/generateInvoicePdf";
+import { downloadInvoiceDocx } from "../lib/downloadInvoice";
 import { formatCurrency } from "../lib/format";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 
@@ -364,12 +364,14 @@ function JobDetailPage() {
             return;
         }
 
-        generateInvoicePdf(
-            {
-                name: jobDetails.name,
-                address: jobDetails.address,
-            },
-            invoice,
+        downloadInvoiceDocx(jobDetails.id, invoice.id).catch((error) =>
+            toast({
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Couldn't create the invoice file.",
+                tone: "error",
+            }),
         );
     }
 
@@ -1336,7 +1338,7 @@ function JobDetailPage() {
                                                                     }
                                                                     className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
                                                                 >
-                                                                    Download PDF
+                                                                    Download Word
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -1361,6 +1363,14 @@ function JobDetailPage() {
                         ? {
                               name: jobDetails.name,
                               address: jobDetails.address,
+                              inclGst: jobDetails.inclGst,
+                              invoicedToDate: (
+                                  jobDetails.invoices ?? []
+                              ).reduce(
+                                  (sum, invoice) =>
+                                      sum + invoice.amountIncGst,
+                                  0,
+                              ),
                           }
                         : undefined
                 }

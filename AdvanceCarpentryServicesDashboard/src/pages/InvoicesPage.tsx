@@ -6,7 +6,7 @@ import InvoiceDialog, {
     type InvoiceStatus,
     type NewInvoicePayload,
 } from "../components/invoices/InvoiceDialog";
-import { generateInvoicePdf } from "../components/invoices/generateInvoicePdf";
+import { downloadInvoiceDocx } from "../lib/downloadInvoice";
 import { useFeedback } from "../components/ui/Feedback";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { formatCurrency, formatDate } from "../lib/format";
@@ -28,6 +28,7 @@ type QuotedJob = {
     id: string;
     name: string;
     address: string;
+    inclGst?: number;
     invoices?: Invoice[];
 };
 
@@ -418,18 +419,22 @@ export default function InvoicesPage() {
                                         <button
                                             type="button"
                                             onClick={() =>
-                                                generateInvoicePdf(
-                                                    {
-                                                        name: job.name,
-                                                        address:
-                                                            job.address,
-                                                    },
-                                                    invoice,
+                                                downloadInvoiceDocx(
+                                                    job.id,
+                                                    invoice.id,
+                                                ).catch((error) =>
+                                                    toast({
+                                                        message:
+                                                            error instanceof Error
+                                                                ? error.message
+                                                                : "Couldn't create the invoice file.",
+                                                        tone: "error",
+                                                    }),
                                                 )
                                             }
                                             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
                                         >
-                                            Download PDF
+                                            Download Word
                                         </button>
                                     </td>
                                 </tr>
@@ -456,10 +461,15 @@ export default function InvoicesPage() {
                 isOpen={isAddOpen}
                 isSubmitting={isSaving}
                 error={addError}
-                jobs={jobs.map(({ id, name, address }) => ({
+                jobs={jobs.map(({ id, name, address, inclGst, invoices }) => ({
                     id,
                     name,
                     address,
+                    inclGst,
+                    invoicedToDate: (invoices ?? []).reduce(
+                        (sum, invoice) => sum + invoice.amountIncGst,
+                        0,
+                    ),
                 }))}
                 onClose={() => setIsAddOpen(false)}
                 onSubmit={handleAddInvoice}

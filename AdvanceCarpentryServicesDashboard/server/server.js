@@ -7,6 +7,7 @@ import { promises as fs } from "fs";
 import { existsSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 
+import { buildInvoiceDocx } from "./invoiceDocx.js";
 import {
     COOKIE_NAME,
     clientIp,
@@ -1264,7 +1265,7 @@ app.post(
             const description =
                 (
                     req.body.description ?? ""
-                ).trim() || "Invoice";
+                ).trim() || "Carpentry works";
 
             const status =
                 req.body.status ?? "Sent";
@@ -1412,6 +1413,98 @@ app.post(
                 .json({
                     message:
                         "Failed to create invoice",
+                });
+        }
+    },
+);
+
+/**
+ * Download an invoice as the Word template with its details filled in
+ */
+app.get(
+    "/api/quoted-jobs/:jobId/invoices/:invoiceId/docx",
+    async (req, res) => {
+        try {
+            const db = await readDb();
+
+            const job = db.quotedJobs.find(
+                (item) =>
+                    item.id ===
+                    req.params.jobId,
+            );
+
+            const invoice = (
+                job?.invoices ?? []
+            ).find(
+                (item) =>
+                    item.id ===
+                    req.params.invoiceId,
+            );
+
+            if (!job || !invoice) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Invoice not found",
+                    });
+            }
+
+            // The date as it was entered (the calendar day, not a timezone).
+            const [year, month, day] =
+                String(invoice.date)
+                    .slice(0, 10)
+                    .split("-")
+                    .map(Number);
+
+            const file = buildInvoiceDocx({
+                clientName: job.name,
+                address: job.address,
+                invoiceNumber:
+                    invoice.invoiceNumber,
+                date: new Date(
+                    year,
+                    month - 1,
+                    day,
+                ),
+                description:
+                    invoice.description,
+                amountExGst:
+                    invoice.amountExGst,
+                gst: invoice.gst,
+                amountIncGst:
+                    invoice.amountIncGst,
+            });
+
+            const filename =
+                `${job.address || job.name} - Advance Carpentry Services Pty Ltd Invoice ${invoice.invoiceNumber}.docx`.replace(
+                    /[\\/:*?"<>|]+/g,
+                    "-",
+                );
+
+            res.setHeader(
+                "Content-Type",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            );
+            res.setHeader(
+                "Content-Disposition",
+                `attachment; filename="Invoice ${invoice.invoiceNumber}.docx"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+            );
+
+            return res.send(
+                Buffer.from(file),
+            );
+        } catch (error) {
+            console.error(
+                "Failed to build invoice document:",
+                error,
+            );
+
+            return res
+                .status(500)
+                .json({
+                    message:
+                        "Couldn't create the invoice file",
                 });
         }
     },

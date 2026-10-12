@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { formatCurrency } from "../../lib/format";
 import { formatDate as formatLocalDate } from "../schedule/scheduleUtils";
 
 export const INVOICE_STATUSES = ["Sent", "Paid", "Overdue"] as const;
@@ -14,7 +15,14 @@ export type NewInvoicePayload = {
     status?: InvoiceStatus;
 };
 
-type PickableJob = {
+// What the job was quoted at (incl. GST) and how much has already been
+// invoiced against it. Used to fill the price in "as per quote".
+type QuoteInfo = {
+    inclGst?: number;
+    invoicedToDate?: number;
+};
+
+type PickableJob = QuoteInfo & {
     id: string;
     name: string;
     address: string;
@@ -29,7 +37,7 @@ type InvoiceDialogProps = {
     // Invoices page: choose which job this invoice belongs to.
     jobs?: PickableJob[];
     // Job page: the job is already known.
-    job?: { name: string; address: string };
+    job?: QuoteInfo & { name: string; address: string };
 };
 
 const API_URL = "";
@@ -38,6 +46,26 @@ const round2 = (value: number) => Math.round(value * 100) / 100;
 
 // The GST in a GST-inclusive amount is a eleventh of it.
 const gstOf = (incGst: number) => round2(incGst / 11);
+
+// The invoice a quote implies: whatever of the quote is still to be billed,
+// described the way your invoices read ("... (100% of total $X)").
+function suggestionFor(quote?: QuoteInfo) {
+    const total = quote?.inclGst ?? 0;
+    const invoiced = quote?.invoicedToDate ?? 0;
+    const remaining = round2(total - invoiced);
+
+    if (remaining <= 0) {
+        return null;
+    }
+
+    return {
+        inc: remaining,
+        description:
+            invoiced > 0
+                ? ""
+                : `Completion of Carpentry (100% of total ${formatCurrency(total)})`,
+    };
+}
 
 const INPUT =
     "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900";
@@ -65,11 +93,36 @@ export default function InvoiceDialog({
     const [nextInvoiceNumber, setNextInvoiceNumber] = useState<
         number | null
     >(null);
+    // Once you've typed a price/description yourself, autofill leaves it alone.
+    const [priceTouched, setPriceTouched] = useState(false);
+    const [descriptionTouched, setDescriptionTouched] = useState(false);
+
+    function autofillFrom(quote?: QuoteInfo, force = false) {
+        const suggestion = suggestionFor(quote);
+
+        if (force || !priceTouched) {
+            setIncText(suggestion ? suggestion.inc.toFixed(2) : "");
+            setExText(
+                suggestion
+                    ? round2(
+                          suggestion.inc - gstOf(suggestion.inc),
+                      ).toFixed(2)
+                    : "",
+            );
+        }
+
+        if (force || !descriptionTouched) {
+            setDescription(suggestion?.description ?? "");
+        }
+    }
 
     useEffect(() => {
         if (!isOpen) {
             return;
         }
+
+        setPriceTouched(false);
+        setDescriptionTouched(false);
 
         setJobId("");
         setJobFilter("");
@@ -80,6 +133,11 @@ export default function InvoiceDialog({
         setInvoiceNumber("");
         setStatus("Sent");
 
+        // On a job page the job (and so its quote) is already known.
+        if (job) {
+            autofillFrom(job, true);
+        }
+
         fetch(`${API_URL}/api/counters`)
             .then((response) => response.json())
             .then((counters) =>
@@ -88,7 +146,8 @@ export default function InvoiceDialog({
                 ),
             )
             .catch(() => setNextInvoiceNumber(null));
-    }, [isOpen]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, job?.inclGst, job?.invoicedToDate]);
 
     const filteredJobs = useMemo(() => {
         const needle = jobFilter.trim().toLowerCase();
@@ -122,6 +181,7 @@ export default function InvoiceDialog({
         hasAmount && (!picking || Boolean(jobId)) && !isSubmitting;
 
     function handleIncChange(value: string) {
+        setPriceTouched(true);
         setIncText(value);
 
         const inc = Number(value);
@@ -134,6 +194,7 @@ export default function InvoiceDialog({
     }
 
     function handleExChange(value: string) {
+        setPriceTouched(true);
         setExText(value);
 
         const ex = Number(value);
@@ -210,9 +271,16 @@ export default function InvoiceDialog({
                             <select
                                 size={5}
                                 value={jobId}
-                                onChange={(event) =>
-                                    setJobId(event.target.value)
-                                }
+                                onChange={(event) => {
+                                    setJobId(event.target.value);
+                                    autofillFrom(
+                                        jobs?.find(
+                                            (item) =>
+                                                item.id ===
+                                                event.target.value,
+                                        ),
+                                    );
+                                }}
                                 aria-label="Choose the job"
                                 className={`${INPUT} mt-2`}
                             >
@@ -358,7 +426,14 @@ export default function InvoiceDialog({
                         </div>
 
                         <p className="mt-1 text-xs text-gray-500">
-                            Fill in either price; the other updates to match.
+                            {chosenJob?.inclGst
+                                ? `Filled in from the quote (${formatCurrency(chosenJob.inclGst)} incl. GST${
+                                      chosenJob.invoicedToDate
+                                          ? `, ${formatCurrency(chosenJob.invoicedToDate)} already invoiced`
+                                          : ""
+                                  }). `
+                                : ""}
+                            Change either price; the other updates to match.
                         </p>
                     </div>
 
@@ -377,9 +452,10 @@ export default function InvoiceDialog({
                             autoFocus={!picking}
                             type="text"
                             value={description}
-                            onChange={(event) =>
-                                setDescription(event.target.value)
-                            }
+                            onChange={(event) => {
+                                setDescriptionTouched(true);
+                                setDescription(event.target.value);
+                            }}
                             placeholder="e.g. Completion of Structural Carpentry (100% of total)"
                             className={INPUT}
                         />
