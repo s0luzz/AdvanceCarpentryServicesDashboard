@@ -6,7 +6,7 @@ import InvoiceDialog, {
     type InvoiceStatus,
     type NewInvoicePayload,
 } from "../components/invoices/InvoiceDialog";
-import { downloadInvoiceDocx } from "../lib/downloadInvoice";
+import { downloadInvoice } from "../lib/downloadInvoice";
 import { useFeedback } from "../components/ui/Feedback";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { formatCurrency, formatDate } from "../lib/format";
@@ -416,26 +416,38 @@ export default function InvoicesPage() {
                                     </td>
 
                                     <td className="px-6 py-4">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                downloadInvoiceDocx(
-                                                    job.id,
-                                                    invoice.id,
-                                                ).catch((error) =>
-                                                    toast({
-                                                        message:
-                                                            error instanceof Error
-                                                                ? error.message
-                                                                : "Couldn't create the invoice file.",
-                                                        tone: "error",
-                                                    }),
-                                                )
-                                            }
-                                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                                        >
-                                            Download Word
-                                        </button>
+                                        <div className="flex gap-2">
+                                            {(["pdf", "docx"] as const).map(
+                                                (format) => (
+                                                    <button
+                                                        key={format}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            downloadInvoice(
+                                                                job.id,
+                                                                invoice.id,
+                                                                format,
+                                                            ).catch(
+                                                                (error) =>
+                                                                    toast({
+                                                                        message:
+                                                                            error instanceof
+                                                                            Error
+                                                                                ? error.message
+                                                                                : "Couldn't create the invoice file.",
+                                                                        tone: "error",
+                                                                    }),
+                                                            )
+                                                        }
+                                                        className="whitespace-nowrap rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                                                    >
+                                                        {format === "pdf"
+                                                            ? "PDF"
+                                                            : "Word"}
+                                                    </button>
+                                                ),
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

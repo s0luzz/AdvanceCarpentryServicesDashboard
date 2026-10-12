@@ -8,6 +8,7 @@ import { existsSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 
 import { buildInvoiceDocx } from "./invoiceDocx.js";
+import { buildInvoicePdf } from "./invoicePdf.js";
 import {
     COOKIE_NAME,
     clientIp,
@@ -1419,12 +1420,39 @@ app.post(
 );
 
 /**
- * Download an invoice as the Word template with its details filled in
+ * Download an invoice: ".docx" is your Word template with the details
+ * filled in; ".pdf" is the blank PDF form with the details stamped on.
+ * Both are built here in the app; nothing else is opened or called.
  */
+const INVOICE_FILES = {
+    docx: {
+        build: async (data) => buildInvoiceDocx(data),
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+    pdf: {
+        build: (data) => buildInvoicePdf(data),
+        type: "application/pdf",
+    },
+};
+
 app.get(
-    "/api/quoted-jobs/:jobId/invoices/:invoiceId/docx",
+    "/api/quoted-jobs/:jobId/invoices/:invoiceId/:format",
     async (req, res) => {
         try {
+            if (
+                !Object.hasOwn(
+                    INVOICE_FILES,
+                    req.params.format,
+                )
+            ) {
+                return res
+                    .status(404)
+                    .json({
+                        message:
+                            "Unknown invoice format",
+                    });
+            }
+
             const db = await readDb();
 
             const job = db.quotedJobs.find(
@@ -1457,7 +1485,12 @@ app.get(
                     .split("-")
                     .map(Number);
 
-            const file = buildInvoiceDocx({
+            const { build, type } =
+                INVOICE_FILES[
+                    req.params.format
+                ];
+
+            const file = await build({
                 clientName: job.name,
                 address: job.address,
                 invoiceNumber:
@@ -1477,18 +1510,18 @@ app.get(
             });
 
             const filename =
-                `${job.address || job.name} - Advance Carpentry Services Pty Ltd Invoice ${invoice.invoiceNumber}.docx`.replace(
+                `${job.address || job.name} - Advance Carpentry Services Pty Ltd Invoice ${invoice.invoiceNumber}.${req.params.format}`.replace(
                     /[\\/:*?"<>|]+/g,
                     "-",
                 );
 
             res.setHeader(
                 "Content-Type",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                type,
             );
             res.setHeader(
                 "Content-Disposition",
-                `attachment; filename="Invoice ${invoice.invoiceNumber}.docx"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+                `attachment; filename="Invoice ${invoice.invoiceNumber}.${req.params.format}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
             );
 
             return res.send(
@@ -1496,7 +1529,7 @@ app.get(
             );
         } catch (error) {
             console.error(
-                "Failed to build invoice document:",
+                "Failed to build invoice file:",
                 error,
             );
 

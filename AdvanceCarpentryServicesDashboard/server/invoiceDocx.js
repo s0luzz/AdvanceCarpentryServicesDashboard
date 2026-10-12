@@ -13,7 +13,7 @@ const TEMPLATE_PATH = path.join(
     "invoice-template.docx",
 );
 
-const MONTHS = [
+export const MONTHS = [
     "January",
     "February",
     "March",
@@ -28,7 +28,7 @@ const MONTHS = [
     "December",
 ];
 
-function ordinal(day) {
+export function ordinal(day) {
     if (day >= 11 && day <= 13) {
         return "th";
     }
@@ -36,7 +36,12 @@ function ordinal(day) {
     return { 1: "st", 2: "nd", 3: "rd" }[day % 10] ?? "th";
 }
 
-function money(value) {
+// A null amount/date leaves the field empty (used to make the blank PDF form).
+export function money(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
     return `$${value.toLocaleString("en-AU", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -108,7 +113,7 @@ function rewriteParagraph(texts, data, state) {
             text.trim().startsWith("Invoice Number"),
         );
 
-        fill(next, start + 1, texts.length, String(data.invoiceNumber));
+        fill(next, start + 1, texts.length, String(data.invoiceNumber ?? ""));
         return next;
     }
 
@@ -132,14 +137,18 @@ function rewriteParagraph(texts, data, state) {
 
         const [dayAt, ordinalAt, ...restOrdinal] = dayPieces;
 
-        if (dayAt !== undefined) next[dayAt] = String(data.date.getDate());
+        const date = data.date;
+
+        if (dayAt !== undefined) {
+            next[dayAt] = date ? String(date.getDate()) : "";
+        }
         if (ordinalAt !== undefined) {
-            next[ordinalAt] = ordinal(data.date.getDate());
+            next[ordinalAt] = date ? ordinal(date.getDate()) : "";
         }
         restOrdinal.forEach((i) => (next[i] = ""));
 
-        next[month] = `${MONTHS[data.date.getMonth()]} `;
-        fill(next, month + 1, texts.length, String(data.date.getFullYear()));
+        next[month] = date ? `${MONTHS[date.getMonth()]} ` : "";
+        fill(next, month + 1, texts.length, date ? String(date.getFullYear()) : "");
         return next;
     }
 
@@ -154,8 +163,6 @@ function rewriteParagraph(texts, data, state) {
             state.amountIndex
         ];
         state.amountIndex += 1;
-
-        if (value === undefined) return null;
 
         fill(next, 0, texts.length, money(value));
         return next;

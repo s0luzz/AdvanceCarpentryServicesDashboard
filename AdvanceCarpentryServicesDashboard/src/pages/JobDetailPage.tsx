@@ -20,7 +20,7 @@ import { CardSkeleton } from "../components/ui/Skeleton";
 import InvoiceDialog, {
     type NewInvoicePayload,
 } from "../components/invoices/InvoiceDialog";
-import { downloadInvoiceDocx } from "../lib/downloadInvoice";
+import { downloadInvoice } from "../lib/downloadInvoice";
 import { formatCurrency } from "../lib/format";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 
@@ -359,12 +359,13 @@ function JobDetailPage() {
 
     function handleDownloadInvoice(
         invoice: Invoice,
+        format: "docx" | "pdf",
     ) {
         if (!jobDetails) {
             return;
         }
 
-        downloadInvoiceDocx(jobDetails.id, invoice.id).catch((error) =>
+        downloadInvoice(jobDetails.id, invoice.id, format).catch((error) =>
             toast({
                 message:
                     error instanceof Error
@@ -1329,17 +1330,37 @@ function JobDetailPage() {
                                                                 )}
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        handleDownloadInvoice(
-                                                                            invoice,
-                                                                        )
-                                                                    }
-                                                                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                                                                >
-                                                                    Download Word
-                                                                </button>
+                                                                <div className="flex justify-end gap-2">
+                                                                    {(
+                                                                        [
+                                                                            "pdf",
+                                                                            "docx",
+                                                                        ] as const
+                                                                    ).map(
+                                                                        (
+                                                                            format,
+                                                                        ) => (
+                                                                            <button
+                                                                                key={
+                                                                                    format
+                                                                                }
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handleDownloadInvoice(
+                                                                                        invoice,
+                                                                                        format,
+                                                                                    )
+                                                                                }
+                                                                                className="whitespace-nowrap rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                                                                            >
+                                                                                {format ===
+                                                                                "pdf"
+                                                                                    ? "PDF"
+                                                                                    : "Word"}
+                                                                            </button>
+                                                                        ),
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     ),
