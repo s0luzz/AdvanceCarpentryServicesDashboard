@@ -66,11 +66,10 @@ export function standardLines(options: QuoteOptions): ScopeLine[] {
         );
     }
 
-    const stud = options.studs === "90x35" ? "35" : "45";
+    // One generic framing size line, for every building type.
+    add("studs", `90 X ${options.studs === "90x35" ? "35" : "45"} H2.`);
 
     if (twoStorey) {
-        add("studs", `90 X ${stud} For Studs.`);
-        add("plates", "90 X 45 For Top Plate And Bottom Plates.");
         add(
             "gf-walls",
             "Supply And Install Ground Floor Walls 450mm Spacing With Double Top Plate.",
@@ -81,7 +80,6 @@ export function standardLines(options: QuoteOptions): ScopeLine[] {
         add("scyon", "Supply And Install Compressed Fibro (Scyon) In All Wet Areas.");
         add("ceiling", "Supply And Install Ceiling And Roof And Lower Roofs.");
     } else {
-        add("studs", `90 X ${stud} H2.`);
         add("gf-walls", "Supply And Install Ground Floor Walls 550mm Spacing.");
         add("ceiling", "Supply And Install Ceiling And Roof.");
     }

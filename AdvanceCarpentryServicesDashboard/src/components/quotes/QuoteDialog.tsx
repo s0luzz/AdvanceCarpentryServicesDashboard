@@ -49,6 +49,14 @@ const INPUT =
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
+// A job's price, with the pre-GST amount rounded to the nearest $100
+// (e.g. $168,712 inc GST -> $153,400 + $15,340 GST = $168,740).
+function roundedInclGst(inclGst: number) {
+    const exGst = Math.round(inclGst / 1.1 / 100) * 100;
+
+    return round2(exGst * 1.1);
+}
+
 function todayIso() {
     const now = new Date();
     const pad = (value: number) => String(value).padStart(2, "0");
@@ -113,7 +121,7 @@ export default function QuoteDialog({ job, jobs, onClose, onSaved }: QuoteDialog
     );
     const [cash, setCash] = useState(existing?.cash ?? false);
     const [price, setPrice] = useState(
-        String(round2(existing?.inclGst ?? job.inclGst ?? 0) || ""),
+        String(existing ? round2(existing.inclGst) : roundedInclGst(job.inclGst ?? 0) || ""),
     );
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
