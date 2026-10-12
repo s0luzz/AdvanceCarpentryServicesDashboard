@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 
 import { buildInvoiceDocx } from "./invoiceDocx.js";
 import { buildInvoicePdf } from "./invoicePdf.js";
+import { buildQuoteDocx, buildQuotePdf } from "./quoteDocs.js";
 import {
     COOKIE_NAME,
     clientIp,
@@ -1544,6 +1545,167 @@ app.get(
 );
 
 /**
+ * Quote documents: the scope-of-work list, number and price for a job, kept on
+ * job.quote, plus Word / PDF downloads built from it.
+ */
+const QUOTE_FILES = {
+    docx: {
+        build: buildQuoteDocx,
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+    pdf: { build: buildQuotePdf, type: "application/pdf" },
+};
+
+const roundCents = (value) => Math.round(value * 100) / 100;
+
+app.post("/api/quoted-jobs/:id/quote", async (req, res) => {
+    try {
+        const db = await readDb();
+        const job = db.quotedJobs.find((item) => item.id === req.params.id);
+
+        if (!job) {
+            return res.status(404).json({ message: "Quote not found" });
+        }
+
+        const body = req.body ?? {};
+        const scope = Array.isArray(body.scope)
+            ? body.scope.map((line) => String(line).trim()).filter(Boolean)
+            : [];
+        const inclGst = Number(body.inclGst);
+        const to = String(body.to ?? "").trim();
+        const site = String(body.site ?? "").trim();
+
+        if (scope.length === 0) {
+            return res.status(400).json({ message: "Add at least one line to the scope." });
+        }
+
+        if (!Number.isFinite(inclGst) || inclGst <= 0) {
+            return res.status(400).json({ message: "Price must be a positive number." });
+        }
+
+        if (!to || !site) {
+            return res.status(400).json({ message: "Client and site address are required." });
+        }
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.date))) {
+            return res.status(400).json({ message: "Date is required." });
+        }
+
+        const usedBy = (number) =>
+            db.quotedJobs.some(
+                (other) =>
+                    other.id !== job.id &&
+                    (Number(other.quoteNumber) === number ||
+                        Number(other.quote?.number) === number),
+            );
+
+        // Jobs numbered 1-17 predate the real quote numbers (now 1500s+), so
+        // those don't count as this job's quote number.
+        const current = Number(job.quote?.number ?? job.quoteNumber);
+        let number = current >= (job.quote ? 1 : 1000) ? current : null;
+        const manual = String(body.number ?? "").trim();
+
+        if (manual !== "" && Number(manual) !== number) {
+            const result = assignSequenceNumber(db.counters, "nextQuoteNumber", manual);
+
+            if (result.error) {
+                return res.status(400).json({ message: result.error });
+            }
+
+            if (usedBy(result.number)) {
+                return res
+                    .status(409)
+                    .json({ message: `Quote number ${result.number} is already in use.` });
+            }
+
+            number = result.number;
+        } else if (!number) {
+            do {
+                number = assignSequenceNumber(db.counters, "nextQuoteNumber").number;
+            } while (usedBy(number));
+        }
+
+        const cash = body.cash === true;
+        const gst = cash ? 0 : roundCents(inclGst / 11);
+
+        job.quoteNumber = number;
+        job.quote = {
+            ...job.quote,
+            number,
+            date: body.date,
+            to,
+            site,
+            scope,
+            options: body.options ?? job.quote?.options,
+            kind: body.options?.type ?? job.quote?.kind,
+            cash,
+            exGst: roundCents(inclGst - gst),
+            gst,
+            inclGst,
+            savedAt: new Date().toISOString(),
+        };
+
+        await writeDb(db);
+
+        return res.json(job.quote);
+    } catch (error) {
+        console.error("Failed to save quote:", error);
+
+        return res.status(500).json({ message: "Couldn't save the quote" });
+    }
+});
+
+app.get("/api/quoted-jobs/:id/quote/:format", async (req, res) => {
+    try {
+        if (!Object.hasOwn(QUOTE_FILES, req.params.format)) {
+            return res.status(404).json({ message: "Unknown quote format" });
+        }
+
+        const db = await readDb();
+        const job = db.quotedJobs.find((item) => item.id === req.params.id);
+        const quote = job?.quote;
+
+        if (!quote) {
+            return res.status(404).json({ message: "This job has no quote yet" });
+        }
+
+        const [year, month, day] = String(quote.date).slice(0, 10).split("-").map(Number);
+        const { build, type } = QUOTE_FILES[req.params.format];
+        const site = quote.site || job.address;
+
+        const file = await build({
+            to: quote.to || job.name,
+            site,
+            date: new Date(year, month - 1, day),
+            number: quote.number,
+            scope: quote.scope,
+            exGst: quote.exGst,
+            gst: quote.gst,
+            inclGst: quote.inclGst,
+            cash: quote.cash === true,
+        });
+
+        const filename =
+            `${site} - Advance Carpentry Services Pty Ltd Quotation.${req.params.format}`.replace(
+                /[\\/:*?"<>|]+/g,
+                "-",
+            );
+
+        res.setHeader("Content-Type", type);
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="Quote ${quote.number}.${req.params.format}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        );
+
+        return res.send(Buffer.from(file));
+    } catch (error) {
+        console.error("Failed to build quote file:", error);
+
+        return res.status(500).json({ message: "Couldn't create the quote file" });
+    }
+});
+
+/**
  * Change an invoice's status (Sent / Paid / Overdue)
  */
 app.patch(
@@ -2402,6 +2564,203 @@ app.delete("/api/todos", async (_req, res) => {
             .json({ message: "Failed to clear todos" });
     }
 });
+
+/**
+ * Employees: kept in their own git-ignored file (phones/emails stay off GitHub).
+ * group: owner | abn | apprentice. plExpiry (YYYY-MM-DD) only matters for ABN.
+ */
+const employeesPath = path.join(__dirname, "..", "employees.json");
+const EMPLOYEE_GROUPS = ["owner", "abn", "apprentice"];
+const EMPLOYEE_TEXT_FIELDS = ["name", "role", "phone", "email", "abn", "notes"];
+
+async function readEmployees() {
+    try {
+        return JSON.parse(await fs.readFile(employeesPath, "utf-8"));
+    } catch (error) {
+        if (error.code === "ENOENT") {
+            return [];
+        }
+
+        throw error;
+    }
+}
+
+function applyEmployeeFields(employee, body) {
+    for (const field of EMPLOYEE_TEXT_FIELDS) {
+        if (typeof body[field] === "string") {
+            employee[field] = body[field].trim();
+        }
+    }
+
+    if (EMPLOYEE_GROUPS.includes(body.group)) {
+        employee.group = body.group;
+    }
+
+    if (body.status === "active" || body.status === "inactive") {
+        employee.status = body.status;
+    }
+
+    if (body.plExpiry === null || body.plExpiry === "") {
+        employee.plExpiry = null;
+    } else if (
+        typeof body.plExpiry === "string" &&
+        /^20\d{2}-\d{2}-\d{2}$/.test(body.plExpiry)
+    ) {
+        employee.plExpiry = body.plExpiry;
+    }
+}
+
+// Related documents (certificates, contracts...) live in a git-ignored folder:
+// employee-files/<employeeId>/<fileId>; names and types are kept on the record.
+const employeeFilesRoot = path.join(__dirname, "..", "employee-files");
+const employeeFilesDir = (employeeId) => path.join(employeeFilesRoot, path.basename(employeeId));
+const employeeUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 25 * 1024 * 1024 },
+});
+
+// handler returns {status?, body} to save the list and reply, or replies itself.
+function employeeRoute(handler) {
+    return async (req, res) => {
+        try {
+            const employees = await readEmployees();
+            const result = await handler(req, res, employees);
+
+            if (result !== undefined && !res.headersSent) {
+                await fs.writeFile(
+                    employeesPath,
+                    JSON.stringify(employees, null, 2),
+                    "utf-8",
+                );
+                return res.status(result.status ?? 200).json(result.body);
+            }
+        } catch (error) {
+            console.error("Employees request failed:", error);
+            return res.status(500).json({ message: "Employees request failed" });
+        }
+    };
+}
+
+app.get("/api/employees", employeeRoute(async (_req, res, employees) => {
+    res.json(employees);
+}));
+
+app.post("/api/employees", employeeRoute(async (req, res, employees) => {
+    const employee = {
+        id: crypto.randomUUID(),
+        number: "",
+        name: "",
+        group: "abn",
+        role: "",
+        phone: "",
+        email: "",
+        abn: "",
+        status: "active",
+        plExpiry: null,
+        notes: "",
+    };
+
+    applyEmployeeFields(employee, req.body);
+
+    if (!employee.name) {
+        return res.status(400).json({ message: "Name is required" });
+    }
+
+    employees.push(employee);
+
+    return { status: 201, body: employee };
+}));
+
+app.patch("/api/employees/:id", employeeRoute(async (req, res, employees) => {
+    const employee = employees.find((item) => item.id === req.params.id);
+
+    if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+    }
+
+    applyEmployeeFields(employee, req.body);
+
+    return { body: employee };
+}));
+
+app.post(
+    "/api/employees/:id/files",
+    employeeUpload.array("files"),
+    employeeRoute(async (req, res, employees) => {
+        const employee = employees.find((item) => item.id === req.params.id);
+
+        if (!employee) {
+            return res.status(404).json({ message: "Employee not found" });
+        }
+
+        employee.files ??= [];
+        await fs.mkdir(employeeFilesDir(employee.id), { recursive: true });
+
+        for (const file of req.files ?? []) {
+            const record = {
+                id: crypto.randomUUID(),
+                name: Buffer.from(file.originalname, "latin1").toString("utf8"),
+                size: file.size,
+                type: file.mimetype || "application/octet-stream",
+                addedAt: new Date().toISOString(),
+            };
+
+            await fs.writeFile(path.join(employeeFilesDir(employee.id), record.id), file.buffer);
+            employee.files.push(record);
+        }
+
+        return { status: 201, body: employee };
+    }),
+);
+
+// Only PDFs and raster images open in the browser; everything else downloads.
+app.get("/api/employees/:id/files/:fileId", employeeRoute(async (req, res, employees) => {
+    const record = employees
+        .find((item) => item.id === req.params.id)
+        ?.files?.find((item) => item.id === req.params.fileId);
+
+    if (!record) {
+        return res.status(404).json({ message: "File not found" });
+    }
+
+    const inline = /^(application\/pdf|image\/(png|jpeg|gif|webp))$/.test(record.type);
+
+    res.setHeader("Content-Type", inline ? record.type : "application/octet-stream");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader(
+        "Content-Disposition",
+        `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(record.name)}`,
+    );
+
+    return res.sendFile(path.join(employeeFilesDir(req.params.id), record.id));
+}));
+
+app.delete("/api/employees/:id/files/:fileId", employeeRoute(async (req, res, employees) => {
+    const employee = employees.find((item) => item.id === req.params.id);
+    const index = employee?.files?.findIndex((item) => item.id === req.params.fileId) ?? -1;
+
+    if (index === -1) {
+        return res.status(404).json({ message: "File not found" });
+    }
+
+    const [record] = employee.files.splice(index, 1);
+    await fs.rm(path.join(employeeFilesDir(employee.id), record.id), { force: true });
+
+    return { body: employee };
+}));
+
+app.delete("/api/employees/:id", employeeRoute(async (req, res, employees) => {
+    const index = employees.findIndex((item) => item.id === req.params.id);
+
+    if (index === -1) {
+        return res.status(404).json({ message: "Employee not found" });
+    }
+
+    employees.splice(index, 1);
+    await fs.rm(employeeFilesDir(req.params.id), { recursive: true, force: true });
+
+    return { body: { message: "Employee deleted" } };
+}));
 
 /**
  * Multer and general errors

@@ -5,8 +5,10 @@ import NewQuoteModal, {
     type NewQuoteFormData,
 } from "../components/layout/NewQuoteModal";
 import { useFeedback } from "../components/ui/Feedback";
+import QuoteDialog, { type SavedQuote } from "../components/quotes/QuoteDialog";
 import RowMenu from "../components/ui/RowMenu";
 import { TableSkeleton } from "../components/ui/Skeleton";
+import { downloadQuote } from "../lib/downloadInvoice";
 import { formatCurrency, formatDate } from "../lib/format";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 
@@ -27,6 +29,9 @@ type QuotedJob = {
     additionalCost: number;
     steel: number;
     date: string;
+    hasSecondFloor?: boolean;
+    hasHebel?: boolean;
+    quote?: SavedQuote;
 };
 
 export default function QuotesPage() {
@@ -42,6 +47,7 @@ export default function QuotesPage() {
     ] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState("");
+    const [quoteJobId, setQuoteJobId] = useState<string | null>(null);
 
     async function fetchQuotedJobs() {
         try {
@@ -496,6 +502,14 @@ export default function QuotesPage() {
 
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setQuoteJobId(job.id)}
+                                                className="flex h-10 items-center justify-center rounded-lg bg-gray-900 px-4 text-sm font-medium text-white hover:bg-gray-800"
+                                            >
+                                                {job.quote ? "Quote" : "Make quote"}
+                                            </button>
+
                                             <NavLink
                                                 to={`/jobs/${job.id}`}
                                                 className="flex h-10 items-center justify-center rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100"
@@ -506,6 +520,16 @@ export default function QuotesPage() {
                                             <RowMenu
                                                 label={`More actions for ${job.address || job.name}`}
                                                 items={[
+                                                    ...(job.quote
+                                                        ? (["docx", "pdf"] as const).map((format) => ({
+                                                              label: `Download ${format === "docx" ? "Word" : "PDF"}`,
+                                                              onSelect: () =>
+                                                                  void downloadQuote(job.id, format).catch(
+                                                                      (error: Error) =>
+                                                                          toast({ message: error.message, tone: "error" }),
+                                                                  ),
+                                                          }))
+                                                        : []),
                                                     {
                                                         label: "Delete…",
                                                         destructive: true,
@@ -537,6 +561,23 @@ export default function QuotesPage() {
                     </table>
                 </div>
             </section>
+
+            {quoteJobId && quotedJobs.find((job) => job.id === quoteJobId) && (
+                <QuoteDialog
+                    key={quoteJobId}
+                    job={quotedJobs.find((job) => job.id === quoteJobId)!}
+                    jobs={quotedJobs}
+                    onClose={() => setQuoteJobId(null)}
+                    onSaved={(quote) => {
+                        setQuotedJobs((current) =>
+                            current.map((job) =>
+                                job.id === quoteJobId ? { ...job, quote } : job,
+                            ),
+                        );
+                        toast(`Saved quote ${quote.number}.`);
+                    }}
+                />
+            )}
 
             <NewQuoteModal
                 isOpen={isNewQuoteModalOpen}

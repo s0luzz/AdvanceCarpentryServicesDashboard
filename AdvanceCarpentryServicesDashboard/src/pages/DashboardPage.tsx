@@ -5,6 +5,7 @@ import ScheduleGrid from "../components/schedule/ScheduleGrid";
 import { useFeedback } from "../components/ui/Feedback";
 import { CardSkeleton } from "../components/ui/Skeleton";
 import { formatCurrency } from "../lib/format";
+import { plStatus, type Employee } from "../lib/publicLiability";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 import {
     mondayOfCurrentWeek,
@@ -48,6 +49,7 @@ function DashboardPage() {
     const [jobs, setJobs] = useState<ScheduleJob[]>([]);
     const [entries, setEntries] = useState<ScheduleEntry[]>([]);
     const [todos, setTodos] = useState<Todo[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [newTodo, setNewTodo] = useState("");
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
@@ -66,6 +68,11 @@ function DashboardPage() {
                 setJobs(loadedJobs);
                 setEntries(loadedEntries);
                 setTodos(loadedTodos);
+
+                // Secondary card: the dashboard still loads if this fails.
+                setEmployees(
+                    await todoRequest(`${API}/employees`).catch(() => []),
+                );
             } catch (error) {
                 console.error(error);
                 setLoadFailed(true);
@@ -196,6 +203,13 @@ function DashboardPage() {
         };
     });
 
+    // ABN workers whose cover has lapsed, is missing, or ends within 6 weeks.
+    const plAlerts = employees
+        .filter((e) => e.group === "abn" && e.status === "active")
+        .map((employee) => ({ employee, status: plStatus(employee.plExpiry) }))
+        .filter(({ status }) => status.tone !== "green")
+        .sort((a, b) => (a.status.days ?? -Infinity) - (b.status.days ?? -Infinity));
+
     return (
         <div>
             <h1 className="text-3xl font-semibold text-gray-900">
@@ -252,6 +266,48 @@ function DashboardPage() {
                     </section>
 
                     <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                        {plAlerts.length > 0 && (
+                            <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+                                <div className="mb-4 flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-gray-900">
+                                        Public liability
+                                    </h2>
+
+                                    <NavLink
+                                        to="/employees"
+                                        className="text-sm font-medium text-blue-600 hover:underline"
+                                    >
+                                        Employees →
+                                    </NavLink>
+                                </div>
+
+                                <ul className="divide-y divide-gray-200">
+                                    {plAlerts.map(({ employee, status }) => (
+                                        <li
+                                            key={employee.id}
+                                            className="flex items-center justify-between gap-3 py-3"
+                                        >
+                                            <p className="min-w-0 truncate text-sm font-semibold text-gray-900">
+                                                {employee.name}
+                                            </p>
+
+                                            <span
+                                                className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold text-white ${
+                                                    status.tone === "red"
+                                                        ? "bg-red-600"
+                                                        : status.tone === "amber"
+                                                          ? "bg-amber-500"
+                                                          : "bg-gray-500"
+                                                }`}
+                                            >
+                                                {status.label}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        )}
+
                         <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold text-gray-900">

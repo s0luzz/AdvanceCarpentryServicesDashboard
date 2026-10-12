@@ -16,6 +16,7 @@ import {
     Tool02,
     TrendUp01,
     Users01,
+    Users02,
 } from "@untitledui/icons";
 
 type SidebarItem = {
@@ -56,6 +57,11 @@ const sidebarItems: SidebarItem[] = [
         label: "Invoices",
         path: "/invoices",
         icon: Receipt,
+    },
+    {
+        label: "Employees",
+        path: "/employees",
+        icon: Users02,
     },
     {
         label: "Suppliers",

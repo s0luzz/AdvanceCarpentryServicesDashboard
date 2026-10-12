@@ -26,3 +26,7 @@ dist-ssr
 # Dashboard login (password hash + sessions)
 auth.json
 auth.json.tmp
+
+# Employee contact details (kept off GitHub)
+employees.json
+employee-files/
