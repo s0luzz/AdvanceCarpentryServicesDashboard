@@ -20,8 +20,12 @@ import { CardSkeleton } from "../components/ui/Skeleton";
 import InvoiceDialog, {
     type NewInvoicePayload,
 } from "../components/invoices/InvoiceDialog";
-import { downloadInvoice } from "../lib/downloadInvoice";
-import { formatCurrency } from "../lib/format";
+import QuoteDialog, {
+    type QuoteJob,
+    type SavedQuote,
+} from "../components/quotes/QuoteDialog";
+import { downloadInvoice, downloadQuote } from "../lib/downloadInvoice";
+import { formatCurrency, formatDate } from "../lib/format";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 type AttachedFile = {
@@ -78,6 +82,7 @@ type Job = {
     files: AttachedFile[];
     invoices?: Invoice[];
     invoiced?: boolean;
+    quote?: SavedQuote;
 };
 
 const API_URL = "";
@@ -95,6 +100,10 @@ function JobDetailPage() {
 
     const [jobDetails, setJobDetails] =
         useState<Job>();
+
+    // Every job, loaded when the quote dialog opens (new quotes start from
+    // the same client's last one).
+    const [quoteDialogJobs, setQuoteDialogJobs] = useState<QuoteJob[] | null>(null);
 
     useDocumentTitle(jobDetails?.name ?? "Job");
 
@@ -135,6 +144,20 @@ function JobDetailPage() {
         invoiceError,
         setInvoiceError,
     ] = useState("");
+
+    async function openQuoteDialog() {
+        try {
+            const response = await fetch(`${API_URL}/api/quoted-jobs`);
+
+            if (!response.ok) {
+                throw new Error();
+            }
+
+            setQuoteDialogJobs(await response.json());
+        } catch {
+            toast({ message: "Couldn't open the quote form. Try again.", tone: "error" });
+        }
+    }
 
     async function fetchJobDetails() {
         if (!jobId) {
@@ -1246,6 +1269,87 @@ function JobDetailPage() {
                                 <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
                                     <div>
                                         <h3 className="text-lg font-semibold text-gray-900">
+                                            Quote
+                                        </h3>
+
+                                        <p className="mt-1 text-sm text-gray-500">
+                                            The scope of work and price sent to the client.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => void openQuoteDialog()}
+                                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                                    >
+                                        {jobDetails.quote ? "Edit quote" : "Make quote"}
+                                    </button>
+                                </div>
+
+                                {!jobDetails.quote ? (
+                                    <p className="rounded-xl border border-dashed border-gray-300 px-6 py-8 text-center text-sm text-gray-500">
+                                        No quote made yet.
+                                    </p>
+                                ) : (
+                                    <div className="rounded-xl border border-gray-200 p-5">
+                                        <div className="flex flex-wrap items-start justify-between gap-4">
+                                            <div className="text-sm text-gray-600">
+                                                <p className="text-base font-semibold text-gray-900">
+                                                    Quote #{jobDetails.quote.number}
+                                                </p>
+                                                <p className="mt-1">
+                                                    {formatDate(jobDetails.quote.date + "T00:00")} · To {jobDetails.quote.to}
+                                                </p>
+                                                <p className="mt-1">
+                                                    {jobDetails.quote.cash
+                                                        ? `${formatCurrency(jobDetails.quote.inclGst)} cash (no GST)`
+                                                        : `${formatCurrency(jobDetails.quote.exGst)} + ${formatCurrency(jobDetails.quote.gst)} GST = ${formatCurrency(jobDetails.quote.inclGst)}`}
+                                                </p>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                {(["docx", "pdf"] as const).map((format) => (
+                                                    <button
+                                                        key={format}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            void downloadQuote(jobDetails.id, format).catch((error: Error) =>
+                                                                toast({ message: error.message, tone: "error" }),
+                                                            )
+                                                        }
+                                                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                                                    >
+                                                        {format === "docx" ? "Word" : "PDF"}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {jobDetails.quote.inclGst !== jobDetails.inclGst && (
+                                            <p className="mt-3 text-xs text-gray-500">
+                                                The job is currently {formatCurrency(jobDetails.inclGst)} inc GST.
+                                            </p>
+                                        )}
+
+                                        <details className="mt-4">
+                                            <summary className="cursor-pointer text-sm font-medium text-gray-700">
+                                                Description &amp; Inclusions ({jobDetails.quote.scope.length} lines)
+                                            </summary>
+
+                                            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-700">
+                                                {jobDetails.quote.scope.map((line, index) => (
+                                                    <li key={index}>{line}</li>
+                                                ))}
+                                            </ul>
+                                        </details>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="border-t border-gray-200 p-6">
+                                <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900">
                                             Invoices
                                         </h3>
 
@@ -1374,6 +1478,18 @@ function JobDetailPage() {
                     )}
                 </section>
             </div>
+
+            {jobDetails && quoteDialogJobs && (
+                <QuoteDialog
+                    job={jobDetails}
+                    jobs={quoteDialogJobs}
+                    onClose={() => setQuoteDialogJobs(null)}
+                    onSaved={(quote) => {
+                        setJobDetails({ ...jobDetails, quote, quoteNumber: quote.number });
+                        toast(`Saved quote ${quote.number}.`);
+                    }}
+                />
+            )}
 
             <InvoiceDialog
                 isOpen={isInvoiceDialogOpen}
