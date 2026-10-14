@@ -349,6 +349,7 @@ export default function PdfEditorPage() {
   const [selectedDimensionIds, setSelectedDimensionIds] = useState<
     string[]
   >([]);
+  const [movingSelection, setMovingSelection] = useState(false);
   const [dimensionEditScope, setDimensionEditScope] = useState<
     "all" | "selected" | null
   >(null);
@@ -797,6 +798,32 @@ export default function PdfEditorPage() {
     );
   }
 
+  // Shift every selected line by the same amount. Labels are stored relative
+  // to their line, so they travel with it.
+  function moveSelectedDimensions(delta: { x: number; y: number }) {
+    const previous = dimensions;
+    const ids = new Set(selectedDimensionIds);
+
+    setDimensions((current) =>
+      current.map((item) =>
+        ids.has(item.id)
+          ? {
+              ...item,
+              start: { x: item.start.x + delta.x, y: item.start.y + delta.y },
+              end: { x: item.end.x + delta.x, y: item.end.y + delta.y },
+            }
+          : item,
+      ),
+    );
+    setMovingSelection(false);
+
+    toast({
+      message: `Moved ${selectedDimensions.length} line${selectedDimensions.length === 1 ? "" : "s"}.`,
+      durationMs: 8000,
+      action: { label: "Undo", onClick: () => setDimensions(previous) },
+    });
+  }
+
   function toggleDimensionSelection(id: string) {
     setSelectedDimensionIds((current) =>
       current.includes(id)
@@ -1128,6 +1155,7 @@ export default function PdfEditorPage() {
             disabled={item.disabled}
             onClick={() => {
               setTool(item.id);
+              setMovingSelection(false);
 
               if (item.id !== "select-lines") {
                 setSelectedDimensionIds([]);
@@ -1250,6 +1278,9 @@ export default function PdfEditorPage() {
             onUpdateShapePoints={updateShapePoints}
             selectedDimensionIds={selectedDimensionIds}
             onToggleDimensionSelection={toggleDimensionSelection}
+            movingSelection={movingSelection && selectedDimensions.length > 0}
+            onMoveSelected={moveSelectedDimensions}
+            onCancelMove={() => setMovingSelection(false)}
           />
 
           {tool === "select-lines" && (
@@ -1260,7 +1291,9 @@ export default function PdfEditorPage() {
                   {dimensions.length}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Click dimensions to add or remove them.
+                  {movingSelection
+                    ? "Click an anchor point (it snaps to line ends), then click where it should go. Esc cancels."
+                    : "Click dimensions to add or remove them."}
                 </p>
               </div>
 
@@ -1278,10 +1311,26 @@ export default function PdfEditorPage() {
                 <button
                   type="button"
                   disabled={selectedDimensions.length === 0}
-                  onClick={() => setSelectedDimensionIds([])}
+                  onClick={() => {
+                    setSelectedDimensionIds([]);
+                    setMovingSelection(false);
+                  }}
                   className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Clear
+                </button>
+
+                <button
+                  type="button"
+                  disabled={selectedDimensions.length === 0}
+                  onClick={() => setMovingSelection((moving) => !moving)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
+                    movingSelection
+                      ? "bg-amber-500 text-white hover:bg-amber-600"
+                      : "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {movingSelection ? "Cancel Move" : "Move"}
                 </button>
 
                 <button

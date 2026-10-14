@@ -571,7 +571,16 @@ export default function QuotesPage() {
                     onSaved={(quote) => {
                         setQuotedJobs((current) =>
                             current.map((job) =>
-                                job.id === quoteJobId ? { ...job, quote } : job,
+                                job.id === quoteJobId
+                                    ? {
+                                          ...job,
+                                          quote,
+                                          quoteNumber: quote.number,
+                                          quotedAmount: quote.exGst,
+                                          gst: quote.gst,
+                                          inclGst: quote.inclGst,
+                                      }
+                                    : job,
                             ),
                         );
                         toast(`Saved quote ${quote.number}.`);

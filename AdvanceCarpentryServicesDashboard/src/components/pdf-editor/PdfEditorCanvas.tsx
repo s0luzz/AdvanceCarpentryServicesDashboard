@@ -76,6 +76,11 @@ type PdfEditorCanvasProps = {
   ) => void;
   selectedDimensionIds: string[];
   onToggleDimensionSelection: (id: string) => void;
+  // Move the selected lines together: click an anchor point, then click where
+  // that point should land.
+  movingSelection: boolean;
+  onMoveSelected: (delta: Point) => void;
+  onCancelMove: () => void;
 };
 
 const MIN_VIEW_SCALE = 0.08;
@@ -197,6 +202,9 @@ export default function PdfEditorCanvas({
   markupStyle,
   selectedDimensionIds,
   onToggleDimensionSelection,
+  movingSelection,
+  onMoveSelected,
+  onCancelMove,
   onOverlayTransformChange,
   onAlignmentDraftChange,
   onAlignmentComplete,
@@ -227,6 +235,7 @@ export default function PdfEditorCanvas({
   const [viewPosition, setViewPosition] = useState({ x: 0, y: 0 });
   const [drawStart, setDrawStart] = useState<Point | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
+  const [moveAnchor, setMoveAnchor] = useState<Point | null>(null);
 
   useEffect(() => {
     const node = baseImageRef.current;
@@ -264,7 +273,31 @@ export default function PdfEditorCanvas({
   useEffect(() => {
     setDrawStart(null);
     setHoverPoint(null);
-  }, [tool]);
+    setMoveAnchor(null);
+  }, [tool, movingSelection]);
+
+  // Escape backs out of a move: first the anchor, then the move itself.
+  useEffect(() => {
+    if (!movingSelection) {
+      return;
+    }
+
+    function handleKey(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (moveAnchor) {
+        setMoveAnchor(null);
+      } else {
+        onCancelMove();
+      }
+    }
+
+    window.addEventListener("keydown", handleKey);
+
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [movingSelection, moveAnchor, onCancelMove]);
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -404,6 +437,39 @@ export default function PdfEditorCanvas({
     });
   }
 
+  // The ends and middles of the selected lines: where an anchor snaps to.
+  function nearestSnapPoint(point: Point): Point | null {
+    const reach = 14 / viewScale;
+    let best: Point | null = null;
+    let bestDistance = reach;
+
+    for (const dimension of dimensions) {
+      if (!selectedDimensionIds.includes(dimension.id)) {
+        continue;
+      }
+
+      const candidates = [
+        dimension.start,
+        dimension.end,
+        {
+          x: (dimension.start.x + dimension.end.x) / 2,
+          y: (dimension.start.y + dimension.end.y) / 2,
+        },
+      ];
+
+      for (const candidate of candidates) {
+        const gap = distance(point, candidate);
+
+        if (gap < bestDistance) {
+          best = candidate;
+          bestDistance = gap;
+        }
+      }
+    }
+
+    return best;
+  }
+
   function handlePointerDown() {
     if (!basePage) {
       return;
@@ -412,6 +478,22 @@ export default function PdfEditorCanvas({
     const point = getWorldPointer();
 
     if (!point) {
+      return;
+    }
+
+    if (movingSelection) {
+      if (!moveAnchor) {
+        setMoveAnchor(nearestSnapPoint(point) ?? point);
+        setHoverPoint(point);
+        return;
+      }
+
+      onMoveSelected({
+        x: point.x - moveAnchor.x,
+        y: point.y - moveAnchor.y,
+      });
+      setMoveAnchor(null);
+      setHoverPoint(null);
       return;
     }
 
@@ -514,6 +596,16 @@ export default function PdfEditorCanvas({
   }
 
   function handlePointerMove() {
+    if (movingSelection) {
+      const point = getWorldPointer();
+
+      if (point) {
+        setHoverPoint(point);
+      }
+
+      return;
+    }
+
     if (
       !drawStart ||
       !(
@@ -790,10 +882,74 @@ export default function PdfEditorCanvas({
               onMoveLabel={onMoveDimensionLabel}
               selected={selectedDimensionIds.includes(dimension.id)}
               onToggleSelect={onToggleDimensionSelection}
+              moving={movingSelection}
               labelScale={dimension.labelScale ?? markupStyle.labelScale}
               labelOpacity={dimension.labelOpacity ?? markupStyle.labelOpacity}
             />
           ))}
+
+          {movingSelection && (
+            <>
+              {!moveAnchor &&
+                hoverPoint &&
+                (() => {
+                  const snap = nearestSnapPoint(hoverPoint);
+
+                  return snap ? (
+                    <Circle
+                      listening={false}
+                      x={snap.x}
+                      y={snap.y}
+                      radius={8 / viewScale}
+                      stroke="#f59e0b"
+                      strokeWidth={2 / viewScale}
+                    />
+                  ) : null;
+                })()}
+
+              {moveAnchor && hoverPoint && (
+                <>
+                  {dimensions
+                    .filter((item) => selectedDimensionIds.includes(item.id))
+                    .map((item) => (
+                      <Line
+                        key={item.id}
+                        listening={false}
+                        points={[
+                          item.start.x + hoverPoint.x - moveAnchor.x,
+                          item.start.y + hoverPoint.y - moveAnchor.y,
+                          item.end.x + hoverPoint.x - moveAnchor.x,
+                          item.end.y + hoverPoint.y - moveAnchor.y,
+                        ]}
+                        stroke="#f59e0b"
+                        opacity={0.85}
+                        lineCap="round"
+                        strokeWidth={Math.max(item.lineWidth, 2) / viewScale}
+                        dash={[8 / viewScale, 5 / viewScale]}
+                      />
+                    ))}
+
+                  <Line
+                    listening={false}
+                    points={[moveAnchor.x, moveAnchor.y, hoverPoint.x, hoverPoint.y]}
+                    stroke="#f59e0b"
+                    strokeWidth={1.5 / viewScale}
+                    dash={[4 / viewScale, 4 / viewScale]}
+                  />
+                </>
+              )}
+
+              {moveAnchor && (
+                <Circle
+                  listening={false}
+                  x={moveAnchor.x}
+                  y={moveAnchor.y}
+                  radius={6 / viewScale}
+                  fill="#f59e0b"
+                />
+              )}
+            </>
+          )}
 
           {drawStart && hoverPoint && tool === "calibrate" && (
             <Line
@@ -1093,6 +1249,7 @@ type DimensionLineProps = {
   onMoveLabel: (id: string, offset: Point) => void;
   selected: boolean;
   onToggleSelect: (id: string) => void;
+  moving: boolean;
   labelScale: number;
   labelOpacity: number;
 };
@@ -1123,6 +1280,7 @@ function DimensionLine({
   onMoveLabel,
   selected,
   onToggleSelect,
+  moving,
   labelScale,
   labelOpacity,
 }: DimensionLineProps) {
@@ -1184,8 +1342,10 @@ function DimensionLine({
     x: defaultCenter.x + offset.x,
     y: defaultCenter.y + offset.y,
   };
+  // While moving a selection, clicks belong to the canvas, not to the lines.
   const interactive =
-    tool === "delete" || tool === "edit" || tool === "select-lines";
+    !moving &&
+    (tool === "delete" || tool === "edit" || tool === "select-lines");
   const hitStrokeWidth = Math.max(lineWidth * 3, 14 / viewScale);
   const handleRadius = 6 / viewScale;
 
@@ -1299,8 +1459,8 @@ function DimensionLine({
         y={labelCenter.y}
         rotation={labelAngle}
         draggable={tool === "edit"}
-        onClick={tool === "select-lines" ? handleBodyClick : undefined}
-        onTap={tool === "select-lines" ? handleBodyClick : undefined}
+        onClick={tool === "select-lines" && !moving ? handleBodyClick : undefined}
+        onTap={tool === "select-lines" && !moving ? handleBodyClick : undefined}
         onDragEnd={(event) => {
           event.cancelBubble = true;
           onMoveLabel(dimension.id, {

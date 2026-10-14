@@ -34,9 +34,9 @@ const sidebarItems: SidebarItem[] = [
         icon: Home01,
     },
     {
-        label: "Quotes",
-        path: "/quotes",
-        icon: Calculator,
+        label: "Jobs",
+        path: "/jobs",
+        icon: Tool02,
     },
     {
         label: "Plan Viewer",
@@ -44,9 +44,9 @@ const sidebarItems: SidebarItem[] = [
         icon: File05,
     },
     {
-        label: "Jobs",
-        path: "/jobs",
-        icon: Tool02,
+        label: "Quotes",
+        path: "/quotes",
+        icon: Calculator,
     },
     {
         label: "Schedule",

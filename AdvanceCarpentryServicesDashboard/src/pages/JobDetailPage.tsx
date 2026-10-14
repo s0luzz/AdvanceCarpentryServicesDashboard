@@ -1485,7 +1485,14 @@ function JobDetailPage() {
                     jobs={quoteDialogJobs}
                     onClose={() => setQuoteDialogJobs(null)}
                     onSaved={(quote) => {
-                        setJobDetails({ ...jobDetails, quote, quoteNumber: quote.number });
+                        setJobDetails({
+                            ...jobDetails,
+                            quote,
+                            quoteNumber: quote.number,
+                            quotedAmount: quote.exGst,
+                            gst: quote.gst,
+                            inclGst: quote.inclGst,
+                        });
                         toast(`Saved quote ${quote.number}.`);
                     }}
                 />

@@ -1628,6 +1628,10 @@ app.post("/api/quoted-jobs/:id/quote", async (req, res) => {
         const cash = body.cash === true;
         const gst = cash ? 0 : roundCents(inclGst / 11);
 
+        // The job's price follows its quote: ex GST, GST and inc GST.
+        job.quotedAmount = roundCents(inclGst - gst);
+        job.gst = gst;
+        job.inclGst = inclGst;
         job.quoteNumber = number;
         job.quote = {
             ...job.quote,
