@@ -20,6 +20,7 @@ import { CardSkeleton } from "../components/ui/Skeleton";
 import InvoiceDialog, {
     type NewInvoicePayload,
 } from "../components/invoices/InvoiceDialog";
+import SwmsDialog from "../components/swms/SwmsDialog";
 import QuoteDialog, {
     type QuoteJob,
     type SavedQuote,
@@ -104,6 +105,7 @@ function JobDetailPage() {
     // Every job, loaded when the quote dialog opens (new quotes start from
     // the same client's last one).
     const [quoteDialogJobs, setQuoteDialogJobs] = useState<QuoteJob[] | null>(null);
+    const [isSwmsOpen, setIsSwmsOpen] = useState(false);
 
     useDocumentTitle(jobDetails?.name ?? "Job");
 
@@ -1277,13 +1279,23 @@ function JobDetailPage() {
                                         </p>
                                     </div>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => void openQuoteDialog()}
-                                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-                                    >
-                                        {jobDetails.quote ? "Edit quote" : "Make quote"}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsSwmsOpen(true)}
+                                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                                        >
+                                            SWMS
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => void openQuoteDialog()}
+                                            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                                        >
+                                            {jobDetails.quote ? "Edit quote" : "Make quote"}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {!jobDetails.quote ? (
@@ -1478,6 +1490,14 @@ function JobDetailPage() {
                     )}
                 </section>
             </div>
+
+            {jobDetails && isSwmsOpen && (
+                <SwmsDialog
+                    job={jobDetails}
+                    onClose={() => setIsSwmsOpen(false)}
+                    onDone={(message) => toast(message)}
+                />
+            )}
 
             {jobDetails && quoteDialogJobs && (
                 <QuoteDialog

@@ -6,6 +6,7 @@ import NewQuoteModal, {
 } from "../components/layout/NewQuoteModal";
 import { useFeedback } from "../components/ui/Feedback";
 import QuoteDialog, { type SavedQuote } from "../components/quotes/QuoteDialog";
+import SwmsDialog from "../components/swms/SwmsDialog";
 import RowMenu from "../components/ui/RowMenu";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { downloadQuote } from "../lib/downloadInvoice";
@@ -48,6 +49,7 @@ export default function QuotesPage() {
 
     const [searchTerm, setSearchTerm] = useState("");
     const [quoteJobId, setQuoteJobId] = useState<string | null>(null);
+    const [swmsJobId, setSwmsJobId] = useState<string | null>(null);
 
     async function fetchQuotedJobs() {
         try {
@@ -520,6 +522,10 @@ export default function QuotesPage() {
                                             <RowMenu
                                                 label={`More actions for ${job.address || job.name}`}
                                                 items={[
+                                                    {
+                                                        label: "SWMS…",
+                                                        onSelect: () => setSwmsJobId(job.id),
+                                                    },
                                                     ...(job.quote
                                                         ? (["docx", "pdf"] as const).map((format) => ({
                                                               label: `Download ${format === "docx" ? "Word" : "PDF"}`,
@@ -561,6 +567,14 @@ export default function QuotesPage() {
                     </table>
                 </div>
             </section>
+
+            {swmsJobId && quotedJobs.find((job) => job.id === swmsJobId) && (
+                <SwmsDialog
+                    job={quotedJobs.find((job) => job.id === swmsJobId)!}
+                    onClose={() => setSwmsJobId(null)}
+                    onDone={(message) => toast(message)}
+                />
+            )}
 
             {quoteJobId && quotedJobs.find((job) => job.id === quoteJobId) && (
                 <QuoteDialog

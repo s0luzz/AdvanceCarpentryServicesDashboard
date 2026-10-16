@@ -10,6 +10,8 @@ import { fileURLToPath } from "url";
 import { buildInvoiceDocx } from "./invoiceDocx.js";
 import { buildInvoicePdf } from "./invoicePdf.js";
 import { buildQuoteDocx, buildQuotePdf } from "./quoteDocs.js";
+import { TEMPLATE_DEFAULTS, buildSwmsDocx } from "./swmsDocx.js";
+import { MAX_WORKERS, buildSwmsPdf } from "./swmsPdf.js";
 import {
     COOKIE_NAME,
     clientIp,
@@ -1706,6 +1708,93 @@ app.get("/api/quoted-jobs/:id/quote/:format", async (req, res) => {
         console.error("Failed to build quote file:", error);
 
         return res.status(500).json({ message: "Couldn't create the quote file" });
+    }
+});
+
+/**
+ * SWMS: your Word template with the few per-job fields swapped in (and the same
+ * thing as a PDF). Principal contractor, person responsible and the workers list
+ * are remembered from the last one made.
+ */
+const SWMS_FILES = {
+    docx: {
+        build: buildSwmsDocx,
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+    pdf: { build: buildSwmsPdf, type: "application/pdf" },
+};
+
+app.get("/api/swms/defaults", async (_req, res) => {
+    try {
+        const db = await readDb();
+
+        return res.json({ ...TEMPLATE_DEFAULTS, ...db.swmsDefaults, maxWorkers: MAX_WORKERS });
+    } catch (error) {
+        console.error("Failed to load SWMS defaults:", error);
+
+        return res.status(500).json({ message: "Couldn't load the SWMS details" });
+    }
+});
+
+app.post("/api/swms/:format", async (req, res) => {
+    try {
+        if (!Object.hasOwn(SWMS_FILES, req.params.format)) {
+            return res.status(404).json({ message: "Unknown SWMS format" });
+        }
+
+        const body = req.body ?? {};
+        const text = (value) => String(value ?? "").trim();
+        const principalContractor = text(body.principalContractor);
+        const person = text(body.person);
+        const location = text(body.location);
+        const workers = (Array.isArray(body.workers) ? body.workers : [])
+            .map(text)
+            .filter(Boolean);
+
+        if (!principalContractor || !person || !location) {
+            return res.status(400).json({
+                message: "Workplace location, person responsible and principal contractor are required.",
+            });
+        }
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.date))) {
+            return res.status(400).json({ message: "Date is required." });
+        }
+
+        if (workers.length > MAX_WORKERS) {
+            return res.status(400).json({ message: `At most ${MAX_WORKERS} workers fit on the SWMS.` });
+        }
+
+        const [year, month, day] = body.date.split("-").map(Number);
+        const { build, type } = SWMS_FILES[req.params.format];
+
+        const file = await build({
+            principalContractor,
+            person,
+            location,
+            date: new Date(year, month - 1, day),
+            workers,
+        });
+
+        // Remember these for next time (not the date or the location).
+        const db = await readDb();
+
+        db.swmsDefaults = { principalContractor, person, workers };
+        await writeDb(db);
+
+        const filename = `SWMS - ${location}.${req.params.format}`.replace(/[\\/:*?"<>|]+/g, "-");
+
+        res.setHeader("Content-Type", type);
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="SWMS.${req.params.format}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        );
+
+        return res.send(Buffer.from(file));
+    } catch (error) {
+        console.error("Failed to build SWMS:", error);
+
+        return res.status(500).json({ message: "Couldn't create the SWMS" });
     }
 });
 
