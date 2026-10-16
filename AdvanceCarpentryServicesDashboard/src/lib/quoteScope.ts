@@ -67,7 +67,7 @@ export function standardLines(options: QuoteOptions): ScopeLine[] {
     }
 
     // One generic framing size line, for every building type.
-    add("studs", `90 X ${options.studs === "90x35" ? "35" : "45"} H2.`);
+    add("studs", `90 X ${options.studs === "90x35" ? "35" : "45"}.`);
 
     if (twoStorey) {
         add(
