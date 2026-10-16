@@ -73,7 +73,6 @@ const sidebarItems: SidebarItem[] = [
         label: "Material Prices",
         path: "/material-prices",
         icon: TrendUp01,
-        soon: true,
     },
     {
         label: "Emails",

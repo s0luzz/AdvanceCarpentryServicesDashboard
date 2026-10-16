@@ -20,6 +20,7 @@ import { CardSkeleton } from "../components/ui/Skeleton";
 import InvoiceDialog, {
     type NewInvoicePayload,
 } from "../components/invoices/InvoiceDialog";
+import SupplierCostCard from "../components/supplier/SupplierCostCard";
 import SwmsDialog from "../components/swms/SwmsDialog";
 import QuoteDialog, {
     type QuoteJob,
@@ -27,6 +28,7 @@ import QuoteDialog, {
 } from "../components/quotes/QuoteDialog";
 import { downloadInvoice, downloadQuote } from "../lib/downloadInvoice";
 import { formatCurrency, formatDate } from "../lib/format";
+import type { SupplierCost } from "../lib/supplierCost";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 type AttachedFile = {
@@ -84,6 +86,7 @@ type Job = {
     invoices?: Invoice[];
     invoiced?: boolean;
     quote?: SavedQuote;
+    supplierCost?: SupplierCost;
 };
 
 const API_URL = "";
@@ -1486,6 +1489,14 @@ function JobDetailPage() {
                                     </div>
                                 )}
                             </div>
+
+                            <SupplierCostCard
+                                jobId={jobDetails.id}
+                                cost={jobDetails.supplierCost}
+                                onChange={(supplierCost) =>
+                                    setJobDetails({ ...jobDetails, supplierCost })
+                                }
+                            />
                         </>
                     )}
                 </section>

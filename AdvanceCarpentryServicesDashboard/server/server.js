@@ -1799,6 +1799,237 @@ app.post("/api/swms/:format", async (req, res) => {
 });
 
 /**
+ * Supplier cost, per job: who quoted, how much, evidence of the quote (any file
+ * type) and the supplier's invoices (amount + optional file). Files live in a
+ * git-ignored folder: supplier-files/<jobId>/<fileId>.
+ */
+const supplierFilesRoot = path.join(__dirname, "..", "supplier-files");
+const supplierUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 25 * 1024 * 1024 },
+});
+const supplierFilesDir = (jobId) => path.join(supplierFilesRoot, path.basename(jobId));
+
+const toFileRecord = (file) => ({
+    id: crypto.randomUUID(),
+    name: Buffer.from(file.originalname, "latin1").toString("utf8"),
+    size: file.size,
+    type: file.mimetype || "application/octet-stream",
+    addedAt: new Date().toISOString(),
+});
+
+async function storeSupplierFile(jobId, file) {
+    const record = toFileRecord(file);
+
+    await fs.mkdir(supplierFilesDir(jobId), { recursive: true });
+    await fs.writeFile(path.join(supplierFilesDir(jobId), record.id), file.buffer);
+
+    return record;
+}
+
+const removeSupplierFile = (jobId, record) =>
+    record
+        ? fs.rm(path.join(supplierFilesDir(jobId), record.id), { force: true })
+        : undefined;
+
+// Money typed by hand: "", null or junk clears it; otherwise a non-negative number.
+function readMoney(value) {
+    if (value === null || value === undefined || String(value).trim() === "") {
+        return { value: null };
+    }
+
+    const amount = Number(String(value).replace(/[$,\s]/g, ""));
+
+    return Number.isFinite(amount) && amount >= 0
+        ? { value: Math.round(amount * 100) / 100 }
+        : { error: "Amounts must be a number of zero or more." };
+}
+
+// Finds the job, gives the handler its supplierCost, saves and returns it.
+function supplierRoute(handler) {
+    return async (req, res) => {
+        try {
+            const db = await readDb();
+            const job = db.quotedJobs.find((item) => item.id === req.params.id);
+
+            if (!job) {
+                return res.status(404).json({ message: "Job not found" });
+            }
+
+            job.supplierCost ??= { supplier: "", quotedAmount: null, evidence: [], invoices: [] };
+
+            const failure = await handler(job.supplierCost, req, res, job);
+
+            if (failure) {
+                return res.status(failure.status ?? 400).json({ message: failure.message });
+            }
+
+            if (res.headersSent) {
+                return undefined;
+            }
+
+            await writeDb(db);
+
+            return res.json(job.supplierCost);
+        } catch (error) {
+            console.error("Supplier cost request failed:", error);
+
+            return res.status(500).json({ message: "Supplier cost request failed" });
+        }
+    };
+}
+
+app.patch("/api/quoted-jobs/:id/supplier-cost", supplierRoute(async (cost, req) => {
+    if (typeof req.body.supplier === "string") {
+        cost.supplier = req.body.supplier.trim();
+    }
+
+    if ("quotedAmount" in req.body) {
+        const money = readMoney(req.body.quotedAmount);
+
+        if (money.error) {
+            return { message: money.error };
+        }
+
+        cost.quotedAmount = money.value;
+    }
+
+    return undefined;
+}));
+
+app.post(
+    "/api/quoted-jobs/:id/supplier-cost/evidence",
+    supplierUpload.array("files"),
+    supplierRoute(async (cost, req) => {
+        for (const file of req.files ?? []) {
+            cost.evidence.push(await storeSupplierFile(req.params.id, file));
+        }
+
+        return undefined;
+    }),
+);
+
+app.delete("/api/quoted-jobs/:id/supplier-cost/evidence/:fileId", supplierRoute(async (cost, req) => {
+    const index = cost.evidence.findIndex((file) => file.id === req.params.fileId);
+
+    if (index === -1) {
+        return { status: 404, message: "File not found" };
+    }
+
+    const [file] = cost.evidence.splice(index, 1);
+    await removeSupplierFile(req.params.id, file);
+
+    return undefined;
+}));
+
+app.post(
+    "/api/quoted-jobs/:id/supplier-cost/invoices",
+    supplierUpload.single("file"),
+    supplierRoute(async (cost, req) => {
+        const money = readMoney(req.body.amount);
+
+        if (money.error || money.value === null) {
+            return { message: "Enter the invoice amount." };
+        }
+
+        cost.invoices.push({
+            id: crypto.randomUUID(),
+            amount: money.value,
+            note: String(req.body.note ?? "").trim(),
+            file: req.file ? await storeSupplierFile(req.params.id, req.file) : null,
+            addedAt: new Date().toISOString(),
+        });
+
+        return undefined;
+    }),
+);
+
+app.patch("/api/quoted-jobs/:id/supplier-cost/invoices/:invoiceId", supplierRoute(async (cost, req) => {
+    const invoice = cost.invoices.find((item) => item.id === req.params.invoiceId);
+
+    if (!invoice) {
+        return { status: 404, message: "Invoice not found" };
+    }
+
+    if ("amount" in req.body) {
+        const money = readMoney(req.body.amount);
+
+        if (money.error || money.value === null) {
+            return { message: "Enter the invoice amount." };
+        }
+
+        invoice.amount = money.value;
+    }
+
+    if (typeof req.body.note === "string") {
+        invoice.note = req.body.note.trim();
+    }
+
+    return undefined;
+}));
+
+// Attach (or replace) the invoice's file.
+app.post(
+    "/api/quoted-jobs/:id/supplier-cost/invoices/:invoiceId/file",
+    supplierUpload.single("file"),
+    supplierRoute(async (cost, req) => {
+        const invoice = cost.invoices.find((item) => item.id === req.params.invoiceId);
+
+        if (!invoice || !req.file) {
+            return { status: 404, message: "Invoice not found" };
+        }
+
+        await removeSupplierFile(req.params.id, invoice.file);
+        invoice.file = await storeSupplierFile(req.params.id, req.file);
+
+        return undefined;
+    }),
+);
+
+app.delete("/api/quoted-jobs/:id/supplier-cost/invoices/:invoiceId", supplierRoute(async (cost, req) => {
+    const index = cost.invoices.findIndex((item) => item.id === req.params.invoiceId);
+
+    if (index === -1) {
+        return { status: 404, message: "Invoice not found" };
+    }
+
+    const [invoice] = cost.invoices.splice(index, 1);
+    await removeSupplierFile(req.params.id, invoice.file);
+
+    return undefined;
+}));
+
+// Only PDFs and raster images open in the browser; everything else downloads.
+app.get("/api/quoted-jobs/:id/supplier-files/:fileId", async (req, res) => {
+    try {
+        const db = await readDb();
+        const cost = db.quotedJobs.find((item) => item.id === req.params.id)?.supplierCost;
+        const record = [...(cost?.evidence ?? []), ...(cost?.invoices ?? []).map((item) => item.file)]
+            .filter(Boolean)
+            .find((file) => file.id === req.params.fileId);
+
+        if (!record) {
+            return res.status(404).json({ message: "File not found" });
+        }
+
+        const inline = /^(application\/pdf|image\/(png|jpeg|gif|webp))$/.test(record.type);
+
+        res.setHeader("Content-Type", inline ? record.type : "application/octet-stream");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader(
+            "Content-Disposition",
+            `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(record.name)}`,
+        );
+
+        return res.sendFile(path.join(supplierFilesDir(req.params.id), record.id));
+    } catch (error) {
+        console.error("Failed to send supplier file:", error);
+
+        return res.status(500).json({ message: "Couldn't open the file" });
+    }
+});
+
+/**
  * Change an invoice's status (Sent / Paid / Overdue)
  */
 app.patch(

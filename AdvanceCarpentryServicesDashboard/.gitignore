@@ -30,3 +30,4 @@ auth.json.tmp
 # Employee contact details (kept off GitHub)
 employees.json
 employee-files/
+supplier-files/
