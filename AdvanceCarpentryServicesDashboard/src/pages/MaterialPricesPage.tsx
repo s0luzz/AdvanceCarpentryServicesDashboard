@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 import { DifferenceText } from "../components/supplier/SupplierCostCard";
 import { useFeedback } from "../components/ui/Feedback";
 import { TableSkeleton } from "../components/ui/Skeleton";
-import { formatCurrency } from "../lib/format";
+import { formatCurrency, formatDate } from "../lib/format";
 import {
     invoicedTotal,
     quoteDifference,
@@ -38,6 +38,7 @@ export default function MaterialPricesPage() {
     const [jobs, setJobs] = useState<Job[] | null>(null);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<Filter>("All");
+    const [newestFirst, setNewestFirst] = useState(true);
 
     useEffect(() => {
         fetch("/api/quoted-jobs")
@@ -50,12 +51,17 @@ export default function MaterialPricesPage() {
     }, [toast]);
 
     // Jobs that have moved past "Quoted": the ones materials are being bought for.
+    // `date` is on every job (when it was entered), so it's the one to sort by.
     const rows = useMemo(
         () =>
             (jobs ?? [])
                 .filter((job) => (job.status ?? "Quoted") !== "Quoted")
-                .sort((a, b) => String(b.date).localeCompare(String(a.date))),
-        [jobs],
+                .sort((a, b) =>
+                    newestFirst
+                        ? String(b.date).localeCompare(String(a.date))
+                        : String(a.date).localeCompare(String(b.date)),
+                ),
+        [jobs, newestFirst],
     );
 
     const shown = useMemo(() => {
@@ -141,10 +147,20 @@ export default function MaterialPricesPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left text-sm">
+                    <table className="w-full min-w-[860px] text-left text-sm">
                         <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                             <tr>
                                 <th className="px-6 py-3 font-semibold">Address</th>
+                                <th className="px-6 py-3 font-semibold" aria-sort={newestFirst ? "descending" : "ascending"}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewestFirst((value) => !value)}
+                                        title="Sort by date"
+                                        className="font-semibold uppercase tracking-wide hover:text-gray-900"
+                                    >
+                                        Date {newestFirst ? "↓" : "↑"}
+                                    </button>
+                                </th>
                                 <th className="px-6 py-3 font-semibold">Supplier</th>
                                 <th className="px-6 py-3 text-right font-semibold">Quoted</th>
                                 <th className="px-6 py-3 text-right font-semibold">Invoiced</th>
@@ -171,6 +187,8 @@ export default function MaterialPricesPage() {
                                             </p>
                                         </td>
 
+                                        <td className="whitespace-nowrap px-6 py-4 text-gray-500">{formatDate(job.date)}</td>
+
                                         <td className="px-6 py-4 text-gray-700">{cost?.supplier || "—"}</td>
 
                                         <td className="whitespace-nowrap px-6 py-4 text-right text-gray-700">
@@ -190,7 +208,7 @@ export default function MaterialPricesPage() {
 
                             {shown.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
+                                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
                                         No jobs match.
                                     </td>
                                 </tr>
@@ -200,7 +218,7 @@ export default function MaterialPricesPage() {
                         {totals.count > 0 && (
                             <tfoot className="border-t-2 border-gray-200 bg-gray-50 text-sm font-semibold text-gray-900">
                                 <tr>
-                                    <td className="px-6 py-3" colSpan={2}>
+                                    <td className="px-6 py-3" colSpan={3}>
                                         Total · {totals.count} job{totals.count === 1 ? "" : "s"} with a quote
                                     </td>
                                     <td className="px-6 py-3 text-right">{formatCurrency(totals.quoted)}</td>
