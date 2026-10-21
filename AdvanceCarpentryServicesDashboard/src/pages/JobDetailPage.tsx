@@ -385,6 +385,57 @@ function JobDetailPage() {
         }
     }
 
+    async function handleDeleteInvoice(invoice: Invoice) {
+        if (!jobDetails) {
+            return;
+        }
+
+        const confirmed = await confirm({
+            title: `Delete invoice ${invoice.invoiceNumber}?`,
+            message:
+                "It's removed from this job and from the Invoices page. The number won't be used again, so the next invoice carries on from where you are.",
+            confirmLabel: "Delete invoice",
+            destructive: true,
+        });
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `${API_URL}/api/quoted-jobs/${jobDetails.id}/invoices/${invoice.id}`,
+                { method: "DELETE" },
+            );
+
+            if (!response.ok) {
+                const result = await response.json().catch(() => null);
+
+                throw new Error(result?.message ?? "Couldn't delete the invoice.");
+            }
+
+            setJobDetails((current) =>
+                current
+                    ? {
+                          ...current,
+                          invoices: (current.invoices ?? []).filter(
+                              (item) => item.id !== invoice.id,
+                          ),
+                      }
+                    : current,
+            );
+            toast(`Deleted invoice ${invoice.invoiceNumber}.`);
+        } catch (error) {
+            toast({
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Couldn't delete the invoice.",
+                tone: "error",
+            });
+        }
+    }
+
     function handleDownloadInvoice(
         invoice: Invoice,
         format: "docx" | "pdf",
@@ -1479,6 +1530,18 @@ function JobDetailPage() {
                                                                             </button>
                                                                         ),
                                                                     )}
+
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            void handleDeleteInvoice(
+                                                                                invoice,
+                                                                            )
+                                                                        }
+                                                                        className="whitespace-nowrap rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                                                                    >
+                                                                        Delete
+                                                                    </button>
                                                                 </div>
                                                             </td>
                                                         </tr>

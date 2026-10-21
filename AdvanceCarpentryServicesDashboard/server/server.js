@@ -2030,6 +2030,33 @@ app.get("/api/quoted-jobs/:id/supplier-files/:fileId", async (req, res) => {
 });
 
 /**
+ * Delete an invoice from a job. Its number is not handed out again.
+ */
+app.delete("/api/quoted-jobs/:jobId/invoices/:invoiceId", async (req, res) => {
+    try {
+        const db = await readDb();
+        const job = db.quotedJobs.find((item) => item.id === req.params.jobId);
+        const index = (job?.invoices ?? []).findIndex(
+            (item) => item.id === req.params.invoiceId,
+        );
+
+        if (!job || index === -1) {
+            return res.status(404).json({ message: "Invoice not found" });
+        }
+
+        job.invoices.splice(index, 1);
+        job.updatedAt = new Date().toISOString();
+        await writeDb(db);
+
+        return res.json({ message: "Invoice deleted" });
+    } catch (error) {
+        console.error("Failed to delete invoice:", error);
+
+        return res.status(500).json({ message: "Couldn't delete the invoice" });
+    }
+});
+
+/**
  * Change an invoice's status (Sent / Paid / Overdue)
  */
 app.patch(
