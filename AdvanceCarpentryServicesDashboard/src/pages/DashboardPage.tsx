@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 
+import { JOB_STATUS_LIST } from "../components/layout/NewQuoteModal";
 import ScheduleGrid from "../components/schedule/ScheduleGrid";
 import { useFeedback } from "../components/ui/Feedback";
 import { CardSkeleton } from "../components/ui/Skeleton";
@@ -36,11 +37,7 @@ async function todoRequest(url: string, init?: RequestInit) {
 }
 
 // Quoted jobs are deliberately left out of the pipeline.
-const PIPELINE_STATUSES = [
-    "Cutting List",
-    "Under Construction",
-    "Complete",
-] as const;
+const PIPELINE_STATUSES = JOB_STATUS_LIST.filter((status) => status !== "Quoted");
 
 function DashboardPage() {
     const { toast } = useFeedback();

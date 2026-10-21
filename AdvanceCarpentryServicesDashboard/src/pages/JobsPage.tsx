@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 
 import NewQuoteModal, {
+    JOB_STATUS_LIST,
     type NewQuoteFormData,
     type QuoteStatus,
 } from "../components/layout/NewQuoteModal";
@@ -31,13 +32,7 @@ type QuotedJob = {
     date: string;
 };
 
-const STATUS_FILTERS: Array<QuoteStatus | "All"> = [
-    "All",
-    "Quoted",
-    "Cutting List",
-    "Under Construction",
-    "Complete",
-];
+const STATUS_FILTERS: Array<QuoteStatus | "All"> = ["All", ...JOB_STATUS_LIST];
 
 const JOB_STATUSES = STATUS_FILTERS.filter(
     (status): status is QuoteStatus => status !== "All",

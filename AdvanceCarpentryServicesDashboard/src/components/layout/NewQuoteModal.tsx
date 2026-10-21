@@ -6,11 +6,18 @@ import {
 } from "react";
 import { formatCurrency } from "../../lib/format";
 
-export type QuoteStatus =
-    | "Quoted"
-    | "Cutting List"
-    | "Under Construction"
-    | "Complete";
+// A job's stages, in order.
+export const JOB_STATUS_LIST = [
+    "Quoted",
+    "Allocated",
+    "Layout Drawn",
+    "Steel Sent",
+    "Cutting List",
+    "Under Construction",
+    "Complete",
+] as const;
+
+export type QuoteStatus = (typeof JOB_STATUS_LIST)[number];
 
 export type NewQuoteFormData = {
     name: string;
@@ -390,10 +397,11 @@ function NewQuoteModal({
                             onChange={(event) => setStatus(event.target.value as QuoteStatus)}
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                         >
-                            <option value="Quoted">Quoted</option>
-                            <option value="Cutting List">Cutting List</option>
-                            <option value="Under Construction">Under Construction</option>
-                            <option value="Complete">Complete</option>
+                            {JOB_STATUS_LIST.map((item) => (
+                                <option key={item} value={item}>
+                                    {item}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div>
