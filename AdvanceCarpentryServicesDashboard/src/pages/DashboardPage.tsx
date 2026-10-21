@@ -37,6 +37,19 @@ async function todoRequest(url: string, init?: RequestInit) {
 }
 
 // Quoted jobs are deliberately left out of the pipeline.
+// Jobs won but not yet being built: Allocated up to and including Cutting List.
+const PREP_STATUSES = JOB_STATUS_LIST.slice(
+    JOB_STATUS_LIST.indexOf("Allocated"),
+    JOB_STATUS_LIST.indexOf("Cutting List") + 1,
+);
+
+const PREP_COLOUR: Record<string, string> = {
+    Allocated: "bg-sky-600",
+    "Layout Drawn": "bg-indigo-600",
+    "Steel Sent": "bg-violet-600",
+    "Cutting List": "bg-amber-500",
+};
+
 const PIPELINE_STATUSES = JOB_STATUS_LIST.filter((status) => status !== "Quoted");
 
 function DashboardPage() {
@@ -178,14 +191,14 @@ function DashboardPage() {
     const doneTodos = todos.filter((todo) => todo.done);
 
     const scheduledJobIds = new Set(entries.map((entry) => entry.jobId));
-    const needsScheduling = jobs
-        .filter(
-            (job) =>
-                (job.status === "Cutting List" ||
-                    job.status === "Under Construction") &&
-                !scheduledJobIds.has(job.id),
-        )
-        .sort((a, b) => a.address.localeCompare(b.address));
+    const prepJobs = jobs
+        .filter((job) => PREP_STATUSES.includes(job.status as never))
+        .sort(
+            (first, second) =>
+                PREP_STATUSES.indexOf(first.status as never) -
+                    PREP_STATUSES.indexOf(second.status as never) ||
+                first.address.localeCompare(second.address),
+        );
 
     const pipeline = PIPELINE_STATUSES.map((status) => {
         const matching = jobs.filter((job) => job.status === status);
@@ -306,42 +319,82 @@ function DashboardPage() {
                         )}
 
                         <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-                            <div className="mb-4 flex items-center justify-between">
+                            <div className="mb-3 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold text-gray-900">
-                                    Needs scheduling
+                                    Jobs in preparation
                                 </h2>
 
-                                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                                    {needsScheduling.length}
+                                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                                    {prepJobs.length}
                                 </span>
                             </div>
 
-                            {needsScheduling.length === 0 ? (
+                            <div className="mb-3 flex flex-wrap gap-2">
+                                {PREP_STATUSES.map((status) => (
+                                    <span
+                                        key={status}
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700"
+                                    >
+                                        <span
+                                            className={`h-2 w-2 rounded-full ${PREP_COLOUR[status]}`}
+                                        />
+                                        {status}{" "}
+                                        <span className="font-semibold">
+                                            {
+                                                prepJobs.filter(
+                                                    (job) => job.status === status,
+                                                ).length
+                                            }
+                                        </span>
+                                    </span>
+                                ))}
+                            </div>
+
+                            {prepJobs.length === 0 ? (
                                 <p className="text-sm text-gray-500">
-                                    Every active job has a date.
+                                    Nothing between Allocated and Cutting List.
                                 </p>
                             ) : (
-                                <ul className="divide-y divide-gray-200">
-                                    {needsScheduling.map((job) => (
+                                <ul className="max-h-[28rem] divide-y divide-gray-200 overflow-y-auto">
+                                    {prepJobs.map((job) => (
                                         <li
                                             key={job.id}
                                             className="flex items-center justify-between gap-3 py-3"
                                         >
                                             <div className="min-w-0">
-                                                <p className="truncate text-sm font-semibold text-gray-900">
+                                                <NavLink
+                                                    to={`/jobs/${job.id}`}
+                                                    className="block truncate text-sm font-semibold text-gray-900 hover:underline"
+                                                >
                                                     {job.address}
-                                                </p>
-                                                <p className="text-xs text-gray-500">
-                                                    {job.name} · {job.status}
+                                                </NavLink>
+                                                <p className="truncate text-xs text-gray-500">
+                                                    {job.name}
+                                                    {scheduledJobIds.has(job.id)
+                                                        ? " · Scheduled"
+                                                        : ""}
                                                 </p>
                                             </div>
 
-                                            <NavLink
-                                                to="/schedule"
-                                                className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
-                                            >
-                                                Schedule
-                                            </NavLink>
+                                            <div className="flex shrink-0 items-center gap-2">
+                                                {job.status === "Cutting List" &&
+                                                    !scheduledJobIds.has(job.id) && (
+                                                        <NavLink
+                                                            to="/schedule"
+                                                            className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                                                        >
+                                                            Schedule
+                                                        </NavLink>
+                                                    )}
+
+                                                <span
+                                                    className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${
+                                                        PREP_COLOUR[job.status ?? ""] ?? "bg-gray-500"
+                                                    }`}
+                                                >
+                                                    {job.status}
+                                                </span>
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
