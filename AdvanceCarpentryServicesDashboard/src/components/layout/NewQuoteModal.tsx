@@ -13,6 +13,7 @@ export const JOB_STATUS_LIST = [
     "Layout Drawn",
     "Steel Sent",
     "Cutting List",
+    "Prepped",
     "Under Construction",
     "Complete",
 ] as const;

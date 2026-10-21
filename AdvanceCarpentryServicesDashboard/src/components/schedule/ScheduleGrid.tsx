@@ -144,6 +144,7 @@ export default function ScheduleGrid({
         .filter(
             (job) =>
                 job.status === "Cutting List" ||
+                job.status === "Prepped" ||
                 job.status === "Under Construction",
         )
         .sort((a, b) => a.address.localeCompare(b.address));
