@@ -7,6 +7,7 @@ import { useFeedback } from "../components/ui/Feedback";
 import { CardSkeleton } from "../components/ui/Skeleton";
 import { formatCurrency } from "../lib/format";
 import { plStatus, type Employee } from "../lib/publicLiability";
+import { patchJob } from "../lib/patchJob";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 import {
     mondayOfCurrentWeek,
@@ -46,7 +47,6 @@ const PREP_STATUSES = JOB_STATUS_LIST.slice(
 const PREP_COLOUR: Record<string, string> = {
     Allocated: "bg-sky-600",
     "Layout Drawn": "bg-indigo-600",
-    "Steel Sent": "bg-violet-600",
     "Cutting List": "bg-amber-500",
 };
 
@@ -199,6 +199,47 @@ function DashboardPage() {
                     PREP_STATUSES.indexOf(second.status as never) ||
                 first.address.localeCompare(second.address),
         );
+
+    // Steel is tracked separately from the stages: every live job from Allocated
+    // up to Under Construction, the ones still waiting on steel first.
+    const steelJobs = jobs
+        .filter((job) => {
+            const stage = JOB_STATUS_LIST.indexOf(job.status as never);
+
+            return (
+                stage >= JOB_STATUS_LIST.indexOf("Allocated") &&
+                stage <= JOB_STATUS_LIST.indexOf("Under Construction")
+            );
+        })
+        .sort(
+            (first, second) =>
+                Number(Boolean(first.steelSent)) - Number(Boolean(second.steelSent)) ||
+                JOB_STATUS_LIST.indexOf(first.status as never) -
+                    JOB_STATUS_LIST.indexOf(second.status as never) ||
+                first.address.localeCompare(second.address),
+        );
+    const steelSentCount = steelJobs.filter((job) => job.steelSent).length;
+
+    async function toggleSteelSent(id: string, steelSent: boolean) {
+        const set = (value: boolean) =>
+            setJobs((current) =>
+                current.map((job) =>
+                    job.id === id ? { ...job, steelSent: value } : job,
+                ),
+            );
+
+        set(steelSent);
+
+        try {
+            await patchJob(id, { steelSent });
+        } catch {
+            set(!steelSent);
+            toast({
+                message: "Couldn't update the Steel sent tick. It's been put back.",
+                tone: "error",
+            });
+        }
+    }
 
     const pipeline = PIPELINE_STATUSES.map((status) => {
         const matching = jobs.filter((job) => job.status === status);
@@ -395,6 +436,67 @@ function DashboardPage() {
                                                     {job.status}
                                                 </span>
                                             </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
+
+                        <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+                            <div className="mb-4 flex items-center justify-between">
+                                <h2 className="text-lg font-semibold text-gray-900">
+                                    Steel
+                                </h2>
+
+                                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                                    {steelSentCount} of {steelJobs.length} sent
+                                </span>
+                            </div>
+
+                            {steelJobs.length === 0 ? (
+                                <p className="text-sm text-gray-500">
+                                    No live jobs yet.
+                                </p>
+                            ) : (
+                                <ul className="max-h-[28rem] divide-y divide-gray-200 overflow-y-auto">
+                                    {steelJobs.map((job) => (
+                                        <li
+                                            key={job.id}
+                                            className="flex items-center gap-3 py-3"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={Boolean(job.steelSent)}
+                                                onChange={(event) =>
+                                                    void toggleSteelSent(job.id, event.target.checked)
+                                                }
+                                                aria-label={`Steel sent: ${job.address}`}
+                                                className="h-4 w-4 shrink-0 cursor-pointer"
+                                            />
+
+                                            <div className="min-w-0 flex-1">
+                                                <NavLink
+                                                    to={`/jobs/${job.id}`}
+                                                    className={`block truncate text-sm font-semibold hover:underline ${
+                                                        job.steelSent ? "text-gray-400" : "text-gray-900"
+                                                    }`}
+                                                >
+                                                    {job.address}
+                                                </NavLink>
+                                                <p className="truncate text-xs text-gray-500">
+                                                    {job.name} · {job.status}
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                                                    job.steelSent
+                                                        ? "bg-emerald-600 text-white"
+                                                        : "bg-gray-100 text-gray-600"
+                                                }`}
+                                            >
+                                                {job.steelSent ? "Sent" : "Waiting"}
+                                            </span>
                                         </li>
                                     ))}
                                 </ul>

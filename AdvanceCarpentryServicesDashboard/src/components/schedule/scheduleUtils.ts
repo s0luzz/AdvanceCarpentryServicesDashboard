@@ -11,6 +11,7 @@ export type ScheduleJob = {
     address: string;
     status?: string;
     inclGst?: number;
+    steelSent?: boolean;
 };
 
 export const DAYS_PER_WEEK = 6;

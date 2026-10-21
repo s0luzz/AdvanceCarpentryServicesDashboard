@@ -1059,6 +1059,13 @@ app.patch(
                         : (existingQuote.invoiced ??
                           false),
 
+                steelSent:
+                    typeof req.body.steelSent ===
+                    "boolean"
+                        ? req.body.steelSent
+                        : (existingQuote.steelSent ??
+                          false),
+
                 quotedAmount:
                     toOptionalNumber(
                         req.body

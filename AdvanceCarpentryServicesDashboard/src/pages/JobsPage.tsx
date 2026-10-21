@@ -10,6 +10,7 @@ import { useFeedback } from "../components/ui/Feedback";
 import RowMenu from "../components/ui/RowMenu";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { formatCurrency, formatDate } from "../lib/format";
+import { patchJob } from "../lib/patchJob";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 type QuotedJob = {
@@ -17,6 +18,7 @@ type QuotedJob = {
     name: string;
     status?: string;
     invoiced?: boolean;
+    steelSent?: boolean;
     quotedAmount: number;
     gst: number;
     inclGst: number;
@@ -339,6 +341,27 @@ export default function JobsPage() {
         }
     }
 
+    async function handleSteelSentChange(id: string, steelSent: boolean) {
+        const set = (value: boolean) =>
+            setQuotedJobs((current) =>
+                current.map((job) =>
+                    job.id === id ? { ...job, steelSent: value } : job,
+                ),
+            );
+
+        set(steelSent);
+
+        try {
+            await patchJob(id, { steelSent });
+        } catch {
+            set(!steelSent);
+            toast({
+                message: "Couldn't update the Steel sent tick. It's been put back.",
+                tone: "error",
+            });
+        }
+    }
+
     async function handleInvoicedChange(
         id: string,
         invoiced: boolean,
@@ -583,6 +606,10 @@ export default function JobsPage() {
                                 </th>
 
                                 <th className="px-6 py-3 text-center font-semibold">
+                                    Steel sent
+                                </th>
+
+                                <th className="px-6 py-3 text-center font-semibold">
                                     Invoiced
                                 </th>
 
@@ -648,6 +675,21 @@ export default function JobsPage() {
                                     <td className="px-6 py-4 text-center">
                                         <input
                                             type="checkbox"
+                                            checked={Boolean(job.steelSent)}
+                                            onChange={(event) =>
+                                                void handleSteelSentChange(
+                                                    job.id,
+                                                    event.target.checked,
+                                                )
+                                            }
+                                            aria-label={`Steel sent: ${job.address || job.name}`}
+                                            className="h-4 w-4 cursor-pointer"
+                                        />
+                                    </td>
+
+                                    <td className="px-6 py-4 text-center">
+                                        <input
+                                            type="checkbox"
                                             checked={Boolean(
                                                 job.invoiced,
                                             )}
@@ -693,7 +735,7 @@ export default function JobsPage() {
                             {filteredJobs.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan={7}
+                                        colSpan={8}
                                         className="px-6 py-10 text-center text-sm text-gray-500"
                                     >
                                         {searchTerm ||

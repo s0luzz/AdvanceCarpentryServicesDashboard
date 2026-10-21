@@ -27,6 +27,7 @@ import QuoteDialog, {
     type SavedQuote,
 } from "../components/quotes/QuoteDialog";
 import { downloadInvoice, downloadQuote } from "../lib/downloadInvoice";
+import { patchJob } from "../lib/patchJob";
 import { formatCurrency, formatDate } from "../lib/format";
 import type { SupplierCost } from "../lib/supplierCost";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
@@ -85,6 +86,7 @@ type Job = {
     files: AttachedFile[];
     invoices?: Invoice[];
     invoiced?: boolean;
+    steelSent?: boolean;
     quote?: SavedQuote;
     supplierCost?: SupplierCost;
 };
@@ -344,6 +346,30 @@ function JobDetailPage() {
             );
         } finally {
             setIsCreatingInvoice(false);
+        }
+    }
+
+    async function handleToggleSteelSent() {
+        if (!jobDetails) {
+            return;
+        }
+
+        const next = !jobDetails.steelSent;
+        const set = (value: boolean) =>
+            setJobDetails((current) =>
+                current ? { ...current, steelSent: value } : current,
+            );
+
+        set(next);
+
+        try {
+            await patchJob(jobDetails.id, { steelSent: next });
+        } catch {
+            set(!next);
+            toast({
+                message: "Couldn't update the Steel sent tick. It's been put back.",
+                tone: "error",
+            });
         }
     }
 
@@ -801,6 +827,18 @@ function JobDetailPage() {
                                             className="h-3.5 w-3.5 cursor-pointer"
                                         />
                                         Invoiced
+                                    </label>
+                                )}
+
+                                {jobDetails && (
+                                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(jobDetails.steelSent)}
+                                            onChange={() => void handleToggleSteelSent()}
+                                            className="h-3.5 w-3.5 cursor-pointer"
+                                        />
+                                        Steel sent
                                     </label>
                                 )}
 

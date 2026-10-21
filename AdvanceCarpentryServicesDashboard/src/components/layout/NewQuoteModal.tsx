@@ -11,7 +11,6 @@ export const JOB_STATUS_LIST = [
     "Quoted",
     "Allocated",
     "Layout Drawn",
-    "Steel Sent",
     "Cutting List",
     "Prepped",
     "Under Construction",
