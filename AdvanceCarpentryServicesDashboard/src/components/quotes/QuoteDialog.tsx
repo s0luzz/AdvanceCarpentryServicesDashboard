@@ -136,6 +136,19 @@ export default function QuoteDialog({ job, jobs, onClose, onSaved }: QuoteDialog
     const gst = cash ? 0 : round2(incl / 11);
     const priceOk = Number.isFinite(incl) && incl > 0;
 
+    // A granny flat, studio or garage on its own is single storey, no steel.
+    function tickOutbuilding(key: "granny" | "studio" | "garage", checked: boolean) {
+        setOptions((current) => {
+            const first = checked && current.type === "double" && !current.granny && !current.studio && !current.garage;
+
+            return {
+                ...current,
+                [key]: checked,
+                ...(first ? { type: "single" as const, steel: false } : {}),
+            };
+        });
+    }
+
     function changeType(type: QuoteType) {
         // Single storey leaves steel and crane out; the others include them.
         setOptions((current) => ({
@@ -297,10 +310,17 @@ export default function QuoteDialog({ job, jobs, onClose, onSaved }: QuoteDialog
 
                     <details
                         className="rounded-lg border border-gray-200 px-4 py-3"
-                        open={options.hebel || options.granny || options.studio || options.garage}
+                        open={
+                            options.hebel ||
+                            options.granny ||
+                            options.studio ||
+                            options.garage ||
+                            options.ffRoof ||
+                            options.alfresco
+                        }
                     >
                         <summary className="cursor-pointer text-sm font-medium text-gray-700">
-                            More options (hebel party wall, granny flat, studio, garage)
+                            More options (granny flat, duplex first floor &amp; roof, hebel, alfresco)
                         </summary>
 
                         <div className="mt-3 space-y-3 text-sm text-gray-700">
@@ -347,11 +367,40 @@ export default function QuoteDialog({ job, jobs, onClose, onSaved }: QuoteDialog
                                         <input
                                             type="checkbox"
                                             checked={options[key]}
-                                            onChange={(e) => set(key, e.target.checked)}
+                                            onChange={(e) => tickOutbuilding(key, e.target.checked)}
                                         />
                                         {label}
                                     </label>
                                 ))}
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-6 gap-y-2">
+                                {options.type === "duplex" && (
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={options.ffRoof}
+                                            onChange={(e) =>
+                                                setOptions((current) => ({
+                                                    ...current,
+                                                    ffRoof: e.target.checked,
+                                                    // First floor walls and roof quotes leave steel out.
+                                                    steel: !e.target.checked,
+                                                }))
+                                            }
+                                        />
+                                        First floor walls &amp; roof only
+                                    </label>
+                                )}
+
+                                <label className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={options.alfresco}
+                                        onChange={(e) => set("alfresco", e.target.checked)}
+                                    />
+                                    Alfresco ceiling sheeting included
+                                </label>
                             </div>
                         </div>
                     </details>

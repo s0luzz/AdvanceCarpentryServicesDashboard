@@ -12,6 +12,8 @@ export type QuoteOptions = {
     granny: boolean;
     studio: boolean;
     garage: boolean;
+    ffRoof: boolean; // duplex: first floor walls and roof only
+    alfresco: boolean; // alfresco ceiling sheeting included
     extra: string[]; // custom lines, written by hand
     removed: string[]; // keys of standard lines switched off
 };
@@ -34,6 +36,8 @@ export function defaultOptions(type: QuoteType = "double"): QuoteOptions {
         granny: false,
         studio: false,
         garage: false,
+        ffRoof: false,
+        alfresco: false,
         extra: [],
         removed: [],
     };
@@ -45,17 +49,19 @@ export function standardLines(options: QuoteOptions): ScopeLine[] {
     const lines: ScopeLine[] = [];
     const add = (key: string, text: string) => lines.push({ key, text });
     const twoStorey = type !== "single";
+    const ffRoof = type === "duplex" && options.ffRoof;
 
     const outbuildings = [
         options.granny && "Granny Flat Framing.",
         options.studio && "Studio Framing.",
         options.garage && "Detached Garage Framing.",
     ].filter(Boolean) as string[];
+    // A granny flat / studio / garage on its own follows its own pattern.
+    const outbuildingOnly = outbuildings.length > 0 && !twoStorey;
 
-    if (outbuildings.length > 0) {
-        // These replace the "X Storey Dwelling" line.
-        outbuildings.forEach((text) => add(text, text));
-    } else {
+    if (ffRoof) {
+        add("type", "Duplex First Floor Walls & Roof.");
+    } else if (!outbuildingOnly) {
         add(
             "type",
             type === "single"
@@ -66,10 +72,15 @@ export function standardLines(options: QuoteOptions): ScopeLine[] {
         );
     }
 
+    outbuildings.forEach((text) => add(text, text));
+
     // One generic framing size line, for every building type.
     add("studs", `90 X ${options.studs === "90x35" ? "35" : "45"}.`);
 
-    if (twoStorey) {
+    if (ffRoof) {
+        add("ff-walls", "Supply And Install First Floor Walls 550mm Spacing.");
+        add("ceiling", "Supply And Install Ceiling And Roof And Lower Roofs.");
+    } else if (twoStorey) {
         add(
             "gf-walls",
             "Supply And Install Ground Floor Walls 450mm Spacing With Double Top Plate.",
@@ -80,11 +91,16 @@ export function standardLines(options: QuoteOptions): ScopeLine[] {
         add("scyon", "Supply And Install Compressed Fibro (Scyon) In All Wet Areas.");
         add("ceiling", "Supply And Install Ceiling And Roof And Lower Roofs.");
     } else {
-        add("gf-walls", "Supply And Install Ground Floor Walls 550mm Spacing.");
+        add(
+            "gf-walls",
+            outbuildingOnly
+                ? "Supply And Install Ground Floor Walls 450mm Spacing With Double Top Plate."
+                : "Supply And Install Ground Floor Walls 550mm Spacing.",
+        );
         add("ceiling", "Supply And Install Ceiling And Roof.");
     }
 
-    if (type === "duplex") {
+    if (type === "duplex" && !ffRoof) {
         add(
             "party-frame",
             "Supply And Install Timber Framed Walls Either Side Of Party Wall.",
@@ -94,34 +110,44 @@ export function standardLines(options: QuoteOptions): ScopeLine[] {
     if (options.hebel) {
         add("hebel", `Supply And Install ${options.hebelSize}mm Hebel Party Wall.`);
     } else if (type === "duplex") {
-        add("hebel", "NOT Including Hebel Party Wall.");
+        add("hebel", ffRoof ? "NOT Including Any Party Wall." : "NOT Including Hebel Party Wall.");
     }
 
     add("bracing", "Adequate Bracing To Walls And Roof Structure.");
     add("wardrobe", "Wardrobe Headers Frame Outs Same Height As Door Heights.");
     add("niche", "Bathroom Niche Frame Outs.");
 
-    if (twoStorey) {
+    if (twoStorey || outbuildingOnly) {
         add("windows", "Temporary Install Windows For External Structure.");
     }
 
     add("brick-gauge", "Positioning Of Windows To Be In Accordance With Brick Gauge.");
     add("eaves", "Supply And Install Eaves Around Perimeter Of Dwelling.");
 
-    add(
-        "steel",
-        steel
-            ? "Supply And Install Structural Steel As Per Structural Plans."
-            : "NOT Including Supply And Install Of Structural Steel.",
-    );
-    add("crane", steel ? "Supply Of Crane." : "NOT Including Supply Of Crane.");
+    if (outbuildingOnly && !steel) {
+        // Granny flat quotes say it in one line.
+        add("steel", "Not Including Any Structural Steel Or Crane.");
+    } else {
+        add(
+            "steel",
+            steel
+                ? "Supply And Install Structural Steel As Per Structural Plans."
+                : "NOT Including Supply And Install Of Structural Steel.",
+        );
+        add("crane", steel ? "Supply Of Crane." : "NOT Including Supply Of Crane.");
+    }
 
     // Custom lines go here (see buildScope).
     add("false-ceiling", "NOT Including Any False Ceiling Feature.");
-    add("alfresco", "NOT Including Any Alfresco/Balcony Ceiling Sheeting.");
+    add(
+        "alfresco",
+        options.alfresco
+            ? "Including Alfresco Ceiling Sheeting."
+            : "NOT Including Any Alfresco/Balcony Ceiling Sheeting.",
+    );
     add("battens", "NOT Including Roof Battens.");
 
-    if (!twoStorey) {
+    if (!twoStorey && !outbuildingOnly) {
         add("windows", "NOT Including Installation Of Windows For External Structure.");
         add("pergolas", "NOT Including Any Pergolas.");
     }
@@ -159,7 +185,8 @@ const norm = (text: string) =>
 // Lines that the builder produces. Anything else is treated as a custom line.
 const STANDARD: RegExp[] = [
     /^(single|two|double) storey (dwelling|duplex)$/,
-    /^(granny flat|studio|detached garage|garage) framing$/,
+    /^(granny flat|studio|detached garage|garage)( framing)?$/,
+    /^duplex first floor walls & roof$/,
     /^90 ?x ?(35|45)( for (studs|top plate and bottom plates)| ?h2)?$/,
     /^supply and install (ground|first) floor walls/,
     /^supply and install floor 300x63/,
@@ -167,7 +194,7 @@ const STANDARD: RegExp[] = [
     /^supply and install compressed fibro/,
     /^supply and install ceiling and roof( and lower roofs)?$/,
     /^supply and install timber framed walls either side/,
-    /^(supply and install \d+ ?mm hebel party wall|not including hebel party wall)$/,
+    /^(supply and install \d+ ?mm hebel party wall|not including (hebel|any) party wall)$/,
     /^adequate bracing/,
     /^wardrobe headers/,
     /^bathroom niche/,
@@ -175,7 +202,7 @@ const STANDARD: RegExp[] = [
     /^positioning of windows/,
     /^supply and install eaves around/,
     /steel|crane/, // regenerated from the steel switch
-    /^not including (any false ceiling feature|any alfresco\/balcony ceiling sheeting|roof battens)$/,
+    /^(not )?including (any false ceiling feature|any alfresco\/balcony ceiling sheeting|alfresco ceiling sheeting|roof battens)$/,
     /^not including (installation of windows for external structure|any pergolas?)$/,
     /^all works to (follow as per plan|comply with timber framing code as1684)$/,
 ];
@@ -194,16 +221,19 @@ export function optionsFromScope(lines: string[]): QuoteOptions {
 
     const options = defaultOptions(type);
 
+    options.ffRoof = type === "duplex" && has(/first floor walls ?& ?roof/);
+
     const steelLines = all.filter((line) => /steel|crane/.test(line));
 
     options.steel =
         steelLines.length === 0
-            ? type !== "single"
+            ? type !== "single" && !options.ffRoof
             : steelLines.some((line) => !line.startsWith("not "));
     options.studs = has(/^90 ?x ?35/) ? "90x35" : has(/^90 ?x ?45/) ? "90x45" : "90x35";
     options.hebel = has(/^supply and install \d+ ?mm (hebel|hebal) party wall/);
     options.hebelSize = has(/75 ?mm (hebel|hebal)/) ? 75 : 50;
-    options.granny = has(/granny flat framing/);
+    options.alfresco = has(/^including alfresco ceiling sheeting/);
+    options.granny = has(/^granny flat( framing)?$/);
     options.studio = has(/studio framing/);
     options.garage = has(/garage framing/);
     options.extra = lines
