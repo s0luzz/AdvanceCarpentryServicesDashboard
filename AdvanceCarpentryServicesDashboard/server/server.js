@@ -129,6 +129,28 @@ app.use(async (req, res, next) => {
     }
 });
 
+// Saves run one at a time. Each save reads the database, changes it and writes
+// it back, so two at once would overwrite each other's change (the second would
+// write back the file as it was before the first). Reading is never held up.
+let saveQueue = Promise.resolve();
+
+app.use("/api", (req, res, next) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+        return next();
+    }
+
+    const myTurn = saveQueue;
+    let finished;
+
+    saveQueue = new Promise((resolve) => {
+        finished = resolve;
+    });
+    res.once("finish", finished);
+    res.once("close", finished);
+
+    return myTurn.then(() => next());
+});
+
 app.use(
     "/uploads",
     express.static(uploadsPath),
@@ -302,15 +324,30 @@ async function readDb() {
     }
 }
 
+// Writes go to a temp file that is then renamed over the real one, so two
+// requests saving at the same moment can never leave a half-old, half-new
+// (corrupt) file behind: the file is always one complete version or the other.
+async function writeFileAtomic(target, text) {
+    const temp = `${target}.${process.pid}.${crypto.randomUUID()}.tmp`;
+
+    try {
+        await fs.writeFile(temp, text, "utf-8");
+        await fs.rename(temp, target);
+    } catch (error) {
+        await fs.rm(temp, { force: true });
+
+        throw error;
+    }
+}
+
 async function writeDb(data) {
-    await fs.writeFile(
+    await writeFileAtomic(
         dbPath,
         JSON.stringify(
             data,
             null,
             2,
         ),
-        "utf-8",
     );
 }
 
@@ -2985,10 +3022,9 @@ function employeeRoute(handler) {
             const result = await handler(req, res, employees);
 
             if (result !== undefined && !res.headersSent) {
-                await fs.writeFile(
+                await writeFileAtomic(
                     employeesPath,
                     JSON.stringify(employees, null, 2),
-                    "utf-8",
                 );
                 return res.status(result.status ?? 200).json(result.body);
             }

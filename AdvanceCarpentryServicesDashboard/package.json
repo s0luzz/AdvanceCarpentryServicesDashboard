@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "server": "nodemon --ignore db.json --ignore auth.json server/server.js",
+    "server": "nodemon --ignore db.json --ignore auth.json --ignore employees.json server/server.js",
     "set-password": "node server/set-password.js"
   },
   "dependencies": {

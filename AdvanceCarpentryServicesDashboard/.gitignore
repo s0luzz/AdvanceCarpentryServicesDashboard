@@ -31,3 +31,6 @@ auth.json.tmp
 employees.json
 employee-files/
 supplier-files/
+
+# half-written temp files
+*.tmp
