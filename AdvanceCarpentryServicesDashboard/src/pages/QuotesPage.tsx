@@ -29,6 +29,8 @@ type QuotedJob = {
     roof: number;
     additionalCost: number;
     steel: number;
+    steelLabour?: number;
+    crane?: number;
     date: string;
     hasSecondFloor?: boolean;
     hasHebel?: boolean;
@@ -210,6 +212,16 @@ export default function QuotesPage() {
             quoteData.append(
                 "steel",
                 String(formData.steel),
+            );
+
+            quoteData.append(
+                "steelLabour",
+                String(formData.steelLabour),
+            );
+
+            quoteData.append(
+                "crane",
+                String(formData.crane),
             );
 
             quoteData.append(

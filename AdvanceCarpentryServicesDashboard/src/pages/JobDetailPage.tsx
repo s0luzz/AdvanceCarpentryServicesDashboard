@@ -83,6 +83,8 @@ type Job = {
 
     additionalCost: number;
     steel: number;
+    steelLabour?: number;
+    crane?: number;
     files: AttachedFile[];
     invoices?: Invoice[];
     invoiced?: boolean;
@@ -997,6 +999,30 @@ function JobDetailPage() {
                                             <span className="font-medium text-gray-900">
                                                 {formatCurrency(
                                                     jobDetails.steel,
+                                                )}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">
+                                                Steel Labour
+                                            </span>
+
+                                            <span className="font-medium text-gray-900">
+                                                {formatCurrency(
+                                                    jobDetails.steelLabour ?? 0,
+                                                )}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">
+                                                Crane
+                                            </span>
+
+                                            <span className="font-medium text-gray-900">
+                                                {formatCurrency(
+                                                    jobDetails.crane ?? 0,
                                                 )}
                                             </span>
                                         </div>

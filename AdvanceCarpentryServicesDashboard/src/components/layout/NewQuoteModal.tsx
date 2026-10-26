@@ -45,6 +45,8 @@ export type NewQuoteFormData = {
 
     additionalCost: number;
     steel: number;
+    steelLabour: number;
+    crane: number;
     files: File[];
 };
 
@@ -84,6 +86,8 @@ export type ExistingQuoteData = {
 
     additionalCost: number;
     steel: number;
+    steelLabour?: number;
+    crane?: number;
     files: File[];
 
   documents?: JobDocument[];
@@ -127,6 +131,8 @@ function NewQuoteModal({
 
     const [additionalCost, setAdditionalCost] = useState("");
     const [steel, setSteel] = useState("");
+    const [steelLabour, setSteelLabour] = useState("");
+    const [crane, setCrane] = useState("");
     const [files, setFiles] = useState<File[]>([]);
 
     useEffect(() => {
@@ -166,6 +172,8 @@ function NewQuoteModal({
 
             setAdditionalCost(String(initialQuote.additionalCost ?? 0));
             setSteel(String(initialQuote.steel ?? 0));
+            setSteelLabour(String(initialQuote.steelLabour ?? 0));
+            setCrane(String(initialQuote.crane ?? 0));
             setFiles([]);
         }
 
@@ -221,6 +229,8 @@ function NewQuoteModal({
         floorCost +
         hebelCost +
         toNumber(steel) +
+        toNumber(steelLabour) +
+        toNumber(crane) +
         toNumber(additionalCost);
 
     if (!isOpen) {
@@ -248,6 +258,8 @@ function NewQuoteModal({
 
         setAdditionalCost("");
         setSteel("");
+        setSteelLabour("");
+        setCrane("");
         setFiles([]);
     }
 
@@ -284,6 +296,8 @@ function NewQuoteModal({
 
             additionalCost: toNumber(additionalCost),
             steel: toNumber(steel),
+            steelLabour: toNumber(steelLabour),
+            crane: toNumber(crane),
             files,
         });
 
@@ -630,6 +644,32 @@ function NewQuoteModal({
                             value={steel}
                             onChange={(event) => setSteel(event.target.value)}
                             placeholder="e.g. $15,000"
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                            Steel Labour Cost
+                        </label>
+                        <input
+                            type="text"
+                            value={steelLabour}
+                            onChange={(event) => setSteelLabour(event.target.value)}
+                            placeholder="e.g. $3,000"
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                            Crane Cost
+                        </label>
+                        <input
+                            type="text"
+                            value={crane}
+                            onChange={(event) => setCrane(event.target.value)}
+                            placeholder="e.g. $1,500"
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                         />
                     </div>

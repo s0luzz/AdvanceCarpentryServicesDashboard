@@ -31,6 +31,8 @@ type QuotedJob = {
     roof: number;
     additionalCost: number;
     steel: number;
+    steelLabour?: number;
+    crane?: number;
     date: string;
 };
 
@@ -214,6 +216,16 @@ export default function JobsPage() {
             quoteData.append(
                 "steel",
                 String(formData.steel),
+            );
+
+            quoteData.append(
+                "steelLabour",
+                String(formData.steelLabour),
+            );
+
+            quoteData.append(
+                "crane",
+                String(formData.crane),
             );
 
             quoteData.append(

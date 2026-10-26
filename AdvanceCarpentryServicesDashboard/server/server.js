@@ -949,6 +949,16 @@ app.post(
                         req.body.steel,
                     ),
 
+                steelLabour:
+                    toNumber(
+                        req.body.steelLabour,
+                    ),
+
+                crane:
+                    toNumber(
+                        req.body.crane,
+                    ),
+
                 hasSecondFloor:
                     toBoolean(
                         req.body
@@ -1175,6 +1185,18 @@ app.patch(
                     toOptionalNumber(
                         req.body.steel,
                         existingQuote.steel,
+                    ),
+
+                steelLabour:
+                    toOptionalNumber(
+                        req.body.steelLabour,
+                        existingQuote.steelLabour,
+                    ),
+
+                crane:
+                    toOptionalNumber(
+                        req.body.crane,
+                        existingQuote.crane,
                     ),
 
                 hasSecondFloor:
