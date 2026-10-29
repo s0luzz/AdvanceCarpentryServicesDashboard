@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 
+import { JOB_STATUS_LIST } from "../layout/NewQuoteModal";
 import {
     DAY_LETTERS,
     DAYS_PER_WEEK,
@@ -141,12 +142,15 @@ export default function ScheduleGrid({
 
     const scheduledJobIds = new Set(entries.map((entry) => entry.jobId));
     const pickable = jobs
-        .filter(
-            (job) =>
-                job.status === "Cutting List" ||
-                job.status === "Prepped" ||
-                job.status === "Under Construction",
-        )
+        .filter((job) => {
+            // Anything from Allocated up to Under Construction can be scheduled.
+            const stage = JOB_STATUS_LIST.indexOf(job.status as never);
+
+            return (
+                stage >= JOB_STATUS_LIST.indexOf("Allocated") &&
+                stage <= JOB_STATUS_LIST.indexOf("Under Construction")
+            );
+        })
         .sort((a, b) => a.address.localeCompare(b.address));
     const needsScheduling = pickable.filter(
         (job) => !scheduledJobIds.has(job.id),
