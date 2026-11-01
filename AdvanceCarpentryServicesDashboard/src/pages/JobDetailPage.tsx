@@ -1619,6 +1619,7 @@ function JobDetailPage() {
 
                             <SupplierCostCard
                                 jobId={jobDetails.id}
+                                address={jobDetails.address}
                                 cost={jobDetails.supplierCost}
                                 onChange={(supplierCost) =>
                                     setJobDetails({ ...jobDetails, supplierCost })

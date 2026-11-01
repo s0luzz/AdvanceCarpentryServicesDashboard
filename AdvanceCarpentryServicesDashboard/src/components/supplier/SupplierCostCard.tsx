@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import DiscrepancyEmailDialog from "./DiscrepancyEmailDialog";
 import { useFeedback } from "../ui/Feedback";
 import { formatCurrency, formatDate } from "../../lib/format";
 import {
@@ -12,6 +13,7 @@ import {
 
 type Props = {
     jobId: string;
+    address: string;
     cost?: SupplierCost;
     onChange: (cost: SupplierCost) => void;
 };
@@ -50,7 +52,7 @@ function FileLink({ jobId, file }: { jobId: string; file: SupplierFile }) {
     );
 }
 
-export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Props) {
+export default function SupplierCostCard({ jobId, address, cost = EMPTY, onChange }: Props) {
     const { toast, confirm } = useFeedback();
     const base = `/api/quoted-jobs/${jobId}/supplier-cost`;
 
@@ -61,6 +63,7 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
     const [newCredit, setNewCredit] = useState(false);
     const [newFile, setNewFile] = useState<File | null>(null);
     const [busy, setBusy] = useState(false);
+    const [emailOpen, setEmailOpen] = useState(false);
     const evidenceInput = useRef<HTMLInputElement>(null);
     const invoiceFileInput = useRef<HTMLInputElement>(null);
 
@@ -222,6 +225,13 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
                         <p className="mt-2 text-base">
                             <DifferenceText difference={difference} />
                         </p>
+                        <button
+                            type="button"
+                            onClick={() => setEmailOpen(true)}
+                            className="mt-1 text-xs font-medium text-blue-600 hover:underline"
+                        >
+                            Draft discrepancy email
+                        </button>
                     </div>
                 </div>
 
@@ -418,6 +428,10 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
                     </label>
                 </div>
             </div>
+
+            {emailOpen && (
+                <DiscrepancyEmailDialog address={address} cost={cost} onClose={() => setEmailOpen(false)} />
+            )}
         </div>
     );
 }
