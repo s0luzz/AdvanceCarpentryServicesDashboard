@@ -58,6 +58,7 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
     const [quoted, setQuoted] = useState(cost.quotedAmount === null ? "" : String(cost.quotedAmount));
     const [newAmount, setNewAmount] = useState("");
     const [newNote, setNewNote] = useState("");
+    const [newCredit, setNewCredit] = useState(false);
     const [newFile, setNewFile] = useState<File | null>(null);
     const [busy, setBusy] = useState(false);
     const evidenceInput = useRef<HTMLInputElement>(null);
@@ -141,7 +142,10 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
     async function addInvoice() {
         const form = new FormData();
 
-        form.append("amount", newAmount);
+        // A credit note is stored as a negative amount, so every total just works.
+        const amount = newAmount.replace(/[$,\s-]/g, "");
+
+        form.append("amount", newCredit && amount ? `-${amount}` : newAmount);
         form.append("note", newNote);
 
         if (newFile) {
@@ -153,6 +157,7 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
         if (ok) {
             setNewAmount("");
             setNewNote("");
+            setNewCredit(false);
             setNewFile(null);
 
             if (invoiceFileInput.current) {
@@ -266,7 +271,7 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
 
                 <div className="mt-5 border-t border-gray-200 pt-4">
                     <p className="text-sm font-medium text-gray-700">
-                        Supplier invoices ({cost.invoices.length})
+                        Supplier invoices and credit notes ({cost.invoices.length})
                     </p>
 
                     {cost.invoices.length > 0 && (
@@ -285,7 +290,14 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
                                 <tbody className="divide-y divide-gray-200">
                                     {cost.invoices.map((invoice) => (
                                         <tr key={invoice.id}>
-                                            <td className="px-4 py-2 text-gray-700">{invoice.note || "—"}</td>
+                                            <td className="px-4 py-2 text-gray-700">
+                                                {invoice.amount < 0 && (
+                                                    <span className="mr-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                                                        Credit
+                                                    </span>
+                                                )}
+                                                {invoice.note || "—"}
+                                            </td>
 
                                             <td className="px-4 py-2">
                                                 <input
@@ -302,7 +314,7 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
                                                             );
                                                         }
                                                     }}
-                                                    className="w-28 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
+                                                    className={`w-28 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm ${invoice.amount < 0 ? "text-red-600" : "text-gray-900"}`}
                                                 />
                                             </td>
 
@@ -367,7 +379,7 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
                                 className={`${INPUT} mt-1`}
                                 value={newNote}
                                 onChange={(e) => setNewNote(e.target.value)}
-                                placeholder="Invoice number, delivery..."
+                                placeholder={newCredit ? "Credit note number, reason..." : "Invoice number, delivery..."}
                             />
                         </label>
 
@@ -376,7 +388,7 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
                             onClick={() => invoiceFileInput.current?.click()}
                             className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
                         >
-                            {newFile ? newFile.name.slice(0, 22) : "Attach invoice"}
+                            {newFile ? newFile.name.slice(0, 22) : newCredit ? "Attach credit note" : "Attach invoice"}
                         </button>
 
                         <input
@@ -392,9 +404,18 @@ export default function SupplierCostCard({ jobId, cost = EMPTY, onChange }: Prop
                             onClick={() => void addInvoice()}
                             className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
                         >
-                            Add invoice
+                            {newCredit ? "Add credit note" : "Add invoice"}
                         </button>
                     </div>
+
+                    <label className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                        <input
+                            type="checkbox"
+                            checked={newCredit}
+                            onChange={(e) => setNewCredit(e.target.checked)}
+                        />
+                        Credit note / refund (takes the amount off what's invoiced)
+                    </label>
                 </div>
             </div>
         </div>

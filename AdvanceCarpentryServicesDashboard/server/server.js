@@ -1899,14 +1899,14 @@ const removeSupplierFile = (jobId, record) =>
         : undefined;
 
 // Money typed by hand: "", null or junk clears it; otherwise a non-negative number.
-function readMoney(value) {
+function readMoney(value, allowNegative = false) {
     if (value === null || value === undefined || String(value).trim() === "") {
         return { value: null };
     }
 
     const amount = Number(String(value).replace(/[$,\s]/g, ""));
 
-    return Number.isFinite(amount) && amount >= 0
+    return Number.isFinite(amount) && (allowNegative || amount >= 0)
         ? { value: Math.round(amount * 100) / 100 }
         : { error: "Amounts must be a number of zero or more." };
 }
@@ -1992,7 +1992,7 @@ app.post(
     "/api/quoted-jobs/:id/supplier-cost/invoices",
     supplierUpload.single("file"),
     supplierRoute(async (cost, req) => {
-        const money = readMoney(req.body.amount);
+        const money = readMoney(req.body.amount, true);
 
         if (money.error || money.value === null) {
             return { message: "Enter the invoice amount." };
@@ -2018,7 +2018,7 @@ app.patch("/api/quoted-jobs/:id/supplier-cost/invoices/:invoiceId", supplierRout
     }
 
     if ("amount" in req.body) {
-        const money = readMoney(req.body.amount);
+        const money = readMoney(req.body.amount, true);
 
         if (money.error || money.value === null) {
             return { message: "Enter the invoice amount." };
