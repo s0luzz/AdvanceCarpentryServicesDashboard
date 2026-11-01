@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useFeedback } from "../ui/Feedback";
-import { formatCurrency, formatDate } from "../../lib/format";
+import { formatCurrency } from "../../lib/format";
 import { invoicedTotal, quoteDifference, type SupplierCost } from "../../lib/supplierCost";
 
 type Props = {
@@ -13,37 +13,27 @@ type Props = {
 const INPUT =
     "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900";
 
-// A starting point only: everything is editable before it's sent.
+// A starting point only: everything is editable before it's sent. Plain text,
+// so the address and amounts can't be bold like in the usual email.
 function draftBody({ address, cost }: Pick<Props, "address" | "cost">) {
-    const lines = cost.invoices.map(
-        (invoice) =>
-            `- ${formatDate(invoice.addedAt)}  ${invoice.note || "Invoice"}: ${formatCurrency(invoice.amount)}${invoice.amount < 0 ? " (credit)" : ""}`,
-    );
+    const quoted = cost.quotedAmount === null ? "[quoted price]" : formatCurrency(cost.quotedAmount);
     const difference = quoteDifference(cost);
+    const diff =
+        difference === null
+            ? ""
+            : ` (diff ${difference > 0 ? "-" : "+"}${formatCurrency(Math.abs(difference))})`;
 
     return [
-        `Hi ${cost.supplier || "team"},`,
+        `Good ${new Date().getHours() < 12 ? "Morning" : "Afternoon"},`,
+        "Hope you are well",
+        `For ${address}, there is a discrepancy between the quoted price and the invoiced totals. (attached)`,
+        `${address} - Quoted price ${quoted}. Invoiced ${formatCurrency(invoicedTotal(cost))}${diff}`,
+        "Could you please review and confirm the difference as well as issue the relevant credit / updated invoice in line with our agreed quoted amounts.",
         "",
-        `I'm writing about the materials for ${address}. The invoiced total doesn't match the quote.`,
-        "",
-        `Quoted: ${cost.quotedAmount === null ? "—" : formatCurrency(cost.quotedAmount)}`,
-        `Invoiced so far: ${formatCurrency(invoicedTotal(cost))}`,
-        difference === null || difference >= 0
-            ? ""
-            : `Over the quote by: ${formatCurrency(-difference)}`,
-        "",
-        "Invoices:",
-        ...(lines.length ? lines : ["- (none added)"]),
-        "",
-        "[What looks wrong, e.g. items or prices that differ from the quote]",
-        "",
-        "Could you please check this and send a credit note for the difference?",
-        "",
-        "Thanks,",
-        "Advance Carpentry Services",
-    ]
-        .filter((line, i, all) => !(line === "" && all[i - 1] === ""))
-        .join("\n");
+        "Kind Regards,",
+        "Andrew Daher",
+        "Company Director | Advance Carpentry Services",
+    ].join("\n");
 }
 
 export default function DiscrepancyEmailDialog({ address, cost, onClose }: Props) {
@@ -104,8 +94,8 @@ export default function DiscrepancyEmailDialog({ address, cost, onClose }: Props
                     <label className="block text-sm font-medium text-gray-700">
                         Message
                         <textarea
-                            rows={16}
-                            className={`${INPUT} mt-1 font-mono`}
+                            rows={12}
+                            className={`${INPUT} mt-1`}
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
                         />
