@@ -16,6 +16,7 @@ export type QuoteOptions = {
     alfresco: boolean; // alfresco ceiling sheeting included
     extra: string[]; // custom lines, written by hand
     removed: string[]; // keys of standard lines switched off
+    edited?: Record<string, string>; // standard lines reworded by hand, by key
 };
 
 export type ScopeLine = { key: string; text: string };
@@ -40,11 +41,22 @@ export function defaultOptions(type: QuoteType = "double"): QuoteOptions {
         alfresco: false,
         extra: [],
         removed: [],
+        edited: {},
     };
 }
 
-// Every standard line, in the order it appears on the quote.
+// Every standard line, in the order it appears on the quote, with any hand
+// edits applied. standardLines({ ...options, edited: {} }) gives the originals.
 export function standardLines(options: QuoteOptions): ScopeLine[] {
+    const edited = options.edited ?? {};
+
+    return generatedLines(options).map((line) => ({
+        key: line.key,
+        text: line.key in edited ? edited[line.key] : line.text,
+    }));
+}
+
+function generatedLines(options: QuoteOptions): ScopeLine[] {
     const { type, steel } = options;
     const lines: ScopeLine[] = [];
     const add = (key: string, text: string) => lines.push({ key, text });
@@ -161,7 +173,7 @@ export function standardLines(options: QuoteOptions): ScopeLine[] {
 // The lines that end up on the quote (standard minus removed, plus custom).
 export function buildScope(options: QuoteOptions): string[] {
     const kept = standardLines(options).filter(
-        (line) => !options.removed.includes(line.key),
+        (line) => !options.removed.includes(line.key) && line.text.trim() !== "",
     );
     const custom = options.extra.map((line) => line.trim()).filter(Boolean);
     const at = kept.findIndex((line) => line.key === "false-ceiling");

@@ -84,7 +84,7 @@ function startingOptions(job: QuoteJob, jobs: QuoteJob[]): QuoteOptions {
         .sort((a, b) => b.quote!.date.localeCompare(a.quote!.date))[0];
 
     const base: QuoteOptions = last
-        ? { ...optionsOf(last.quote!), removed: [] }
+        ? { ...optionsOf(last.quote!), removed: [], edited: {} }
         : defaultOptions();
 
     const type: QuoteType = job.hasHebel
@@ -130,6 +130,10 @@ export default function QuoteDialog({ job, jobs, onClose, onSaved }: QuoteDialog
         setOptions((current) => ({ ...current, [key]: value }));
 
     const lines = useMemo(() => standardLines(options), [options]);
+    const originals = useMemo(
+        () => Object.fromEntries(standardLines({ ...options, edited: {} }).map((line) => [line.key, line.text])),
+        [options],
+    );
     const scope = useMemo(() => buildScope(options), [options]);
 
     const incl = Number(price.replace(/[$,\s]/g, ""));
@@ -165,6 +169,13 @@ export default function QuoteDialog({ job, jobs, onClose, onSaved }: QuoteDialog
                 ? options.removed.filter((item) => item !== key)
                 : [...options.removed, key],
         );
+    }
+
+    // Rewords a standard line; putting the original text back drops the edit.
+    function editLine(key: string, text: string) {
+        const { [key]: _old, ...rest } = options.edited ?? {};
+
+        set("edited", text === originals[key] ? rest : { ...rest, [key]: text });
     }
 
     async function save(download?: "docx" | "pdf") {
@@ -427,10 +438,26 @@ export default function QuoteDialog({ job, jobs, onClose, onSaved }: QuoteDialog
                                 const off = options.removed.includes(line.key);
 
                                 return (
-                                    <li key={line.key} className="flex items-start justify-between gap-3 px-3 py-1.5">
-                                        <span className={off ? "text-gray-400 line-through" : "text-gray-900"}>
-                                            {line.text}
-                                        </span>
+                                    <li key={line.key} className="flex items-center justify-between gap-2 px-3 py-1">
+                                        <input
+                                            value={line.text}
+                                            onChange={(e) => editLine(line.key, e.target.value)}
+                                            disabled={off}
+                                            aria-label="Quote line"
+                                            className={`min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 hover:border-gray-300 focus:border-gray-900 focus:outline-none ${off ? "text-gray-400 line-through" : "text-gray-900"} ${line.key in (options.edited ?? {}) ? "italic" : ""}`}
+                                        />
+
+                                        {line.key in (options.edited ?? {}) && !off && (
+                                            <button
+                                                type="button"
+                                                onClick={() => editLine(line.key, originals[line.key])}
+                                                aria-label="Put back the standard wording"
+                                                title="Put back the standard wording"
+                                                className="shrink-0 text-base leading-none text-gray-400 hover:text-gray-900"
+                                            >
+                                                ↺
+                                            </button>
+                                        )}
 
                                         <button
                                             type="button"
