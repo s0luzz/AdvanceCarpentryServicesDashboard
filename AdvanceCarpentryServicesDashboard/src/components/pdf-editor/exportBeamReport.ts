@@ -8,10 +8,16 @@ type ReportOptions = {
   dimensions: DimensionMarkup[];
 };
 
+// typed = the length typed in the dimension box; as-typed = text we can't read
+// as a length (shown exactly as written); none = nothing typed, measured length.
+export type BeamGroup = "typed" | "as-typed" | "none";
+
 export type BeamRow = {
+  group: BeamGroup;
   beam: string;
   colour: string;
-  lengthM: number;
+  length: string; // as shown in the report
+  sortM: number;
   qty: number;
 };
 
@@ -42,28 +48,76 @@ export function colourName(hex: string) {
   return NAMED_COLOURS.reduce((best, item) => (distance(item) < distance(best) ? item : best))[0];
 }
 
-// One row per beam + colour + length (to the nearest 0.1 m), with a count.
+const METRES = /^\d+[.,]\d+$/;
+const MILLIMETRES = /^\d{4}$/;
+const BEAM_AND_LENGTH = /^(.+?)\s+(\d+[.,]\d+)$/;
+
+const metres = (value: number) => `@${value.toFixed(1)}m`;
+
+function read(dimension: DimensionMarkup): Pick<BeamRow, "group" | "beam" | "length" | "sortM"> {
+  const label = dimension.label.trim() || "(no label)";
+  const text = dimension.displayText.trim();
+  const typed = (beam: string, value: number) => ({
+    group: "typed" as const,
+    beam,
+    length: metres(value),
+    sortM: value,
+  });
+
+  if (text === "") {
+    const measured = Math.round(dimension.measuredMm / 100) / 10;
+
+    return { group: "none", beam: label, length: `${metres(measured)} measured`, sortM: measured };
+  }
+
+  if (METRES.test(text)) {
+    return typed(label, Number(text.replace(",", ".")));
+  }
+
+  if (MILLIMETRES.test(text)) {
+    return typed(label, Number(text) / 1000);
+  }
+
+  const both = BEAM_AND_LENGTH.exec(text);
+
+  if (both) {
+    return typed(both[1].trim(), Number(both[2].replace(",", ".")));
+  }
+
+  return { group: "as-typed", beam: label, length: text, sortM: 0 };
+}
+
+// One row per beam + colour + length, with a count.
 export function beamRows(dimensions: DimensionMarkup[]): BeamRow[] {
   const rows = new Map<string, BeamRow>();
 
   for (const dimension of dimensions) {
-    const beam = dimension.label.trim() || "(no label)";
     const colour = dimension.lineColor.toLowerCase();
-    const lengthM = Math.round(dimension.measuredMm / 100) / 10;
-    const key = `${beam}|${colour}|${lengthM}`;
+    const found = read(dimension);
+    const key = [found.group, found.beam, colour, found.length].join("|");
     const row = rows.get(key);
 
     if (row) {
       row.qty += 1;
     } else {
-      rows.set(key, { beam, colour, lengthM, qty: 1 });
+      rows.set(key, { ...found, colour, qty: 1 });
     }
   }
 
   return [...rows.values()].sort(
-    (a, b) => a.beam.localeCompare(b.beam) || a.colour.localeCompare(b.colour) || b.lengthM - a.lengthM,
+    (a, b) =>
+      a.beam.localeCompare(b.beam) ||
+      a.colour.localeCompare(b.colour) ||
+      b.sortM - a.sortM ||
+      a.length.localeCompare(b.length),
   );
 }
+
+const GROUP_TITLES: Record<BeamGroup, string> = {
+  typed: "",
+  "as-typed": "Written as typed (check these)",
+  none: "No length entered (measured length shown)",
+};
 
 export function exportBeamReport({ client, address, dimensions }: ReportOptions) {
   const rows = beamRows(dimensions);
@@ -71,7 +125,7 @@ export function exportBeamReport({ client, address, dimensions }: ReportOptions)
   const margin = 48;
   const width = pdf.internal.pageSize.getWidth();
   const height = pdf.internal.pageSize.getHeight();
-  const columns = { beam: margin, qty: margin + 200, length: margin + 270, colour: margin + 360 };
+  const columns = { beam: margin, qty: margin + 200, length: margin + 265, colour: margin + 400 };
   let y = margin;
 
   pdf.setFont("helvetica", "bold").setFontSize(18).text("Beam report", margin, y);
@@ -98,23 +152,38 @@ export function exportBeamReport({ client, address, dimensions }: ReportOptions)
   heading();
   pdf.setFont("helvetica", "normal").setFontSize(12);
 
-  for (const row of rows) {
-    if (y > height - margin) {
-      pdf.addPage();
-      y = margin;
-      heading();
+  for (const group of ["typed", "as-typed", "none"] as const) {
+    const inGroup = rows.filter((row) => row.group === group);
+
+    if (inGroup.length === 0) {
+      continue;
+    }
+
+    if (GROUP_TITLES[group]) {
+      y += 8;
+      pdf.setFont("helvetica", "bold").setFontSize(10).text(GROUP_TITLES[group], margin, y);
+      y += 18;
       pdf.setFont("helvetica", "normal").setFontSize(12);
     }
 
-    pdf.text(row.beam, columns.beam, y);
-    pdf.text(`x${row.qty}`, columns.qty, y);
-    pdf.text(`@${row.lengthM.toFixed(1)}m`, columns.length, y);
+    for (const row of inGroup) {
+      if (y > height - margin) {
+        pdf.addPage();
+        y = margin;
+        heading();
+        pdf.setFont("helvetica", "normal").setFontSize(12);
+      }
 
-    const [r, g, b] = rgb(row.colour);
+      pdf.text(row.beam, columns.beam, y);
+      pdf.text(`x${row.qty}`, columns.qty, y);
+      pdf.text(row.length, columns.length, y);
 
-    pdf.setFillColor(r, g, b).setDrawColor(120).rect(columns.colour, y - 9, 11, 11, "FD");
-    pdf.text(colourName(row.colour), columns.colour + 18, y);
-    y += 20;
+      const [r, g, b] = rgb(row.colour);
+
+      pdf.setFillColor(r, g, b).setDrawColor(120).rect(columns.colour, y - 9, 11, 11, "FD");
+      pdf.text(colourName(row.colour), columns.colour + 18, y);
+      y += 20;
+    }
   }
 
   if (rows.length === 0) {
