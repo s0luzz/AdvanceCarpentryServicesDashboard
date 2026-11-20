@@ -12,6 +12,7 @@ export type ScheduleJob = {
     status?: string;
     inclGst?: number;
     steelSent?: boolean;
+    date?: string; // when the job was added (ISO)
 };
 
 export const DAYS_PER_WEEK = 6;

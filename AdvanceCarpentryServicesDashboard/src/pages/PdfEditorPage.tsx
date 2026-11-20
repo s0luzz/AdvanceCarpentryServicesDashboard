@@ -16,6 +16,7 @@ import { useFeedback } from "../components/ui/Feedback";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 import PagePicker from "../components/pdf-editor/PagePicker";
 import PdfEditorCanvas from "../components/pdf-editor/PdfEditorCanvas";
+import { exportBeamReport } from "../components/pdf-editor/exportBeamReport";
 import { exportMarkupPdf } from "../components/pdf-editor/exportMarkupPdf";
 import type {
   AlignmentDraft,
@@ -1118,6 +1119,21 @@ export default function PdfEditorPage() {
               <span className="font-medium text-emerald-600">Saved</span>
             ) : null}
           </div>
+
+          <button
+            type="button"
+            disabled={dimensions.length === 0}
+            onClick={() =>
+              exportBeamReport({
+                client: job?.name ?? "",
+                address: job?.address ?? "",
+                dimensions,
+              })
+            }
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Generate report
+          </button>
 
           <button
             type="button"

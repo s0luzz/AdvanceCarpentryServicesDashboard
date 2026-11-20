@@ -10,6 +10,7 @@ import { plStatus, type Employee } from "../lib/publicLiability";
 import { patchJob } from "../lib/patchJob";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 import {
+    formatDate,
     mondayOfCurrentWeek,
     type ScheduleEntry,
     type ScheduleJob,
@@ -61,6 +62,9 @@ function DashboardPage() {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [newTodo, setNewTodo] = useState("");
+    // Pipeline date range (by the date a job was added). Starts at year to date.
+    const [pipelineFrom, setPipelineFrom] = useState(`${new Date().getFullYear()}-01-01`);
+    const [pipelineTo, setPipelineTo] = useState(formatDate(new Date()));
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
     const pendingDeletes = useRef(new Set<number>());
@@ -241,8 +245,14 @@ function DashboardPage() {
         }
     }
 
+    const inRange = (job: ScheduleJob) => {
+        const day = job.date ? formatDate(new Date(job.date)) : "";
+
+        return (!pipelineFrom || day >= pipelineFrom) && (!pipelineTo || day <= pipelineTo);
+    };
+
     const pipeline = PIPELINE_STATUSES.map((status) => {
-        const matching = jobs.filter((job) => job.status === status);
+        const matching = jobs.filter((job) => job.status === status && inRange(job));
 
         return {
             status,
@@ -590,9 +600,41 @@ function DashboardPage() {
                         </section>
 
                         <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-                            <h2 className="mb-4 text-lg font-semibold text-gray-900">
-                                Pipeline
-                            </h2>
+                            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                                <h2 className="text-lg font-semibold text-gray-900">
+                                    Pipeline
+                                </h2>
+
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                                    <input
+                                        type="date"
+                                        value={pipelineFrom}
+                                        max={pipelineTo || undefined}
+                                        onChange={(e) => setPipelineFrom(e.target.value)}
+                                        aria-label="Pipeline from date"
+                                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
+                                    />
+                                    to
+                                    <input
+                                        type="date"
+                                        value={pipelineTo}
+                                        min={pipelineFrom || undefined}
+                                        onChange={(e) => setPipelineTo(e.target.value)}
+                                        aria-label="Pipeline to date"
+                                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setPipelineFrom(`${new Date().getFullYear()}-01-01`);
+                                            setPipelineTo(formatDate(new Date()));
+                                        }}
+                                        className="font-medium text-blue-600 hover:underline"
+                                    >
+                                        YTD
+                                    </button>
+                                </div>
+                            </div>
 
                             <div className="space-y-3">
                                 {pipeline.map((item) => (
@@ -619,7 +661,7 @@ function DashboardPage() {
 
                             <p className="mt-3 text-xs text-gray-500">
                                 Values include GST. Quoted jobs aren't
-                                counted.
+                                counted. Range is by the date the job was added.
                             </p>
                         </section>
                     </div>
