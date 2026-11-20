@@ -119,7 +119,9 @@ const GROUP_TITLES: Record<BeamGroup, string> = {
   none: "No length entered (measured length shown)",
 };
 
-export function exportBeamReport({ client, address, dimensions }: ReportOptions) {
+export function exportBeamReport({ client, address, dimensions: all }: ReportOptions) {
+  // Only the red lines are beams to order.
+  const dimensions = all.filter((dimension) => colourName(dimension.lineColor) === "Red");
   const rows = beamRows(dimensions);
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
   const margin = 48;
@@ -187,7 +189,7 @@ export function exportBeamReport({ client, address, dimensions }: ReportOptions)
   }
 
   if (rows.length === 0) {
-    pdf.text("No beams marked on this page.", margin, y);
+    pdf.text("No red beams marked on this page.", margin, y);
     y += 20;
   }
 
