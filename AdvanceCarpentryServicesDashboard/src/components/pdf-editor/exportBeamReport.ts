@@ -15,7 +15,6 @@ export type BeamGroup = "typed" | "as-typed" | "none";
 export type BeamRow = {
   group: BeamGroup;
   beam: string;
-  colour: string;
   length: string; // as shown in the report
   sortM: number;
   qty: number;
@@ -87,27 +86,25 @@ function read(dimension: DimensionMarkup): Pick<BeamRow, "group" | "beam" | "len
   return { group: "as-typed", beam: label, length: text, sortM: 0 };
 }
 
-// One row per beam + colour + length, with a count.
+// One row per beam + length, with a count.
 export function beamRows(dimensions: DimensionMarkup[]): BeamRow[] {
   const rows = new Map<string, BeamRow>();
 
   for (const dimension of dimensions) {
-    const colour = dimension.lineColor.toLowerCase();
     const found = read(dimension);
-    const key = [found.group, found.beam, colour, found.length].join("|");
+    const key = [found.group, found.beam, found.length].join("|");
     const row = rows.get(key);
 
     if (row) {
       row.qty += 1;
     } else {
-      rows.set(key, { ...found, colour, qty: 1 });
+      rows.set(key, { ...found, qty: 1 });
     }
   }
 
   return [...rows.values()].sort(
     (a, b) =>
       a.beam.localeCompare(b.beam) ||
-      a.colour.localeCompare(b.colour) ||
       b.sortM - a.sortM ||
       a.length.localeCompare(b.length),
   );
@@ -127,7 +124,7 @@ export function exportBeamReport({ client, address, dimensions: all }: ReportOpt
   const margin = 48;
   const width = pdf.internal.pageSize.getWidth();
   const height = pdf.internal.pageSize.getHeight();
-  const columns = { beam: margin, qty: margin + 200, length: margin + 265, colour: margin + 400 };
+  const columns = { beam: margin, qty: margin + 200, length: margin + 265 };
   let y = margin;
 
   pdf.setFont("helvetica", "bold").setFontSize(18).text("Beam report", margin, y);
@@ -146,7 +143,6 @@ export function exportBeamReport({ client, address, dimensions: all }: ReportOpt
     pdf.text("BEAM", columns.beam, y);
     pdf.text("QTY", columns.qty, y);
     pdf.text("LENGTH", columns.length, y);
-    pdf.text("COLOUR", columns.colour, y);
     pdf.setDrawColor(150).line(margin, y + 6, width - margin, y + 6);
     y += 22;
   };
@@ -179,11 +175,6 @@ export function exportBeamReport({ client, address, dimensions: all }: ReportOpt
       pdf.text(row.beam, columns.beam, y);
       pdf.text(`x${row.qty}`, columns.qty, y);
       pdf.text(row.length, columns.length, y);
-
-      const [r, g, b] = rgb(row.colour);
-
-      pdf.setFillColor(r, g, b).setDrawColor(120).rect(columns.colour, y - 9, 11, 11, "FD");
-      pdf.text(colourName(row.colour), columns.colour + 18, y);
       y += 20;
     }
   }
