@@ -12,6 +12,7 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
 import { formatCurrency } from "../lib/format";
+import { exportStructuralReport } from "./pdf-editor/exportStructuralReport";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -203,7 +204,7 @@ function createEmptyTakeoff(): SavedTakeoff {
   };
 }
 
-const STEEL_RATE_PER_KG = 5.5;
+const STEEL_RATE_PER_KG = 4.8;
 const STEEL_BEAM_DOUBLING_FACTOR = 2;
 
 function computeSteelTotal(
@@ -1032,6 +1033,41 @@ export default function PdfViewer({
       return false;
     }
   });
+
+  // Every file's beams and posts for the job: this file as it is on screen,
+  // the others as last saved.
+  async function generateSteelReport() {
+    try {
+      const job = jobId
+        ? await readJsonResponse<{
+            name?: string;
+            address?: string;
+            files?: { id: string; name?: string; originalName?: string }[];
+            takeoffByFile?: Record<string, unknown>;
+          }>(await fetch(`${API_URL}/api/quoted-jobs/${jobId}`), "Unable to load quote")
+        : {};
+      const saved = Object.entries(job.takeoffByFile ?? {}).filter(([id]) => id !== fileId);
+      const nameOf = (id: string) => {
+        const found = job.files?.find((item) => item.id === id);
+
+        return found?.originalName || found?.name || "Plan";
+      };
+
+      exportStructuralReport({
+        client: job.name ?? "",
+        address: job.address ?? "",
+        beamTypes,
+        files: [
+          { name: fileId ? nameOf(fileId) : "Plan", beams, posts },
+          ...saved.map(([id, value]) => ({ name: nameOf(id), ...parseSavedTakeoff(value) })),
+        ],
+        kgFactor: STEEL_BEAM_DOUBLING_FACTOR,
+        ratePerKg: STEEL_RATE_PER_KG,
+      });
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Unable to create the report.");
+    }
+  }
 
   function toggleTotals() {
     setTotalsOpen((current) => {
@@ -4758,6 +4794,14 @@ export default function PdfViewer({
                 Steel{" "}
                 <strong>{formatCurrency(steelTotal)}</strong>
               </span>
+
+              <button
+                type="button"
+                onClick={() => void generateSteelReport()}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1 font-medium text-slate-700 hover:bg-slate-100"
+              >
+                Generate report
+              </button>
             </>
           )}
         </div>

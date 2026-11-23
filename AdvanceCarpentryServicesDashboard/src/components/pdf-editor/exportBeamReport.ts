@@ -116,6 +116,46 @@ const GROUP_TITLES: Record<BeamGroup, string> = {
   none: "No length entered (measured length shown)",
 };
 
+// Shared by the markup beam report and the structural takeoff report.
+export function reportHeader(pdf: jsPDF, title: string, lines: string[], margin: number) {
+  let y = margin;
+
+  pdf.setFont("helvetica", "bold").setFontSize(18).text(title, margin, y);
+  y += 22;
+  pdf.setFont("helvetica", "normal").setFontSize(11);
+  [...lines, new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })]
+    .filter(Boolean)
+    .forEach((line) => {
+      pdf.text(line, margin, y);
+      y += 15;
+    });
+
+  return y + 12;
+}
+
+// A "Notes" box with writing lines, moved to a new page if it won't fit.
+export function reportNotes(pdf: jsPDF, startY: number, margin: number) {
+  const width = pdf.internal.pageSize.getWidth();
+  const height = pdf.internal.pageSize.getHeight();
+  const notesHeight = Math.max(Math.min(height - margin - startY, 170), 60);
+  let y = startY;
+
+  if (y + notesHeight > height - margin) {
+    pdf.addPage();
+    y = margin;
+  }
+
+  pdf.setFont("helvetica", "bold").setFontSize(10).text("Notes", margin, y);
+  pdf.setDrawColor(150).rect(margin, y + 8, width - margin * 2, notesHeight);
+
+  for (let line = y + 36; line < y + 8 + notesHeight; line += 24) {
+    pdf.setDrawColor(210).line(margin + 8, line, width - margin - 8, line);
+  }
+}
+
+export const reportFileName = (name: string, kind: string) =>
+  `${(name || "Job").replace(/[\\/:*?"<>|]+/g, "")} - ${kind}.pdf`;
+
 export function exportBeamReport({ client, address, dimensions: all }: ReportOptions) {
   // Only the red lines are beams to order.
   const dimensions = all.filter((dimension) => colourName(dimension.lineColor) === "Red");
@@ -127,16 +167,7 @@ export function exportBeamReport({ client, address, dimensions: all }: ReportOpt
   const columns = { beam: margin, qty: margin + 200, length: margin + 265 };
   let y = margin;
 
-  pdf.setFont("helvetica", "bold").setFontSize(18).text("Beam report", margin, y);
-  y += 22;
-  pdf.setFont("helvetica", "normal").setFontSize(11);
-  [client, address, new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })]
-    .filter(Boolean)
-    .forEach((line) => {
-      pdf.text(line, margin, y);
-      y += 15;
-    });
-  y += 12;
+  y = reportHeader(pdf, "Beam report", [client, address], margin);
 
   const heading = () => {
     pdf.setFont("helvetica", "bold").setFontSize(10);
@@ -188,22 +219,7 @@ export function exportBeamReport({ client, address, dimensions: all }: ReportOpt
   pdf.text(`Total: ${dimensions.length} piece${dimensions.length === 1 ? "" : "s"}`, margin, y + 4);
   y += 30;
 
-  // Notes box, with writing lines.
-  const notesHeight = Math.max(Math.min(height - margin - y, 170), 60);
+  reportNotes(pdf, y, margin);
 
-  if (y + notesHeight > height - margin) {
-    pdf.addPage();
-    y = margin;
-  }
-
-  pdf.text("Notes", margin, y);
-  pdf.setDrawColor(150).rect(margin, y + 8, width - margin * 2, notesHeight);
-
-  for (let line = y + 36; line < y + 8 + notesHeight; line += 24) {
-    pdf.setDrawColor(210).line(margin + 8, line, width - margin - 8, line);
-  }
-
-  const name = (address || client || "Job").replace(/[\\/:*?"<>|]+/g, "");
-
-  pdf.save(`${name} - Beam report.pdf`);
+  pdf.save(reportFileName(address || client, "Beam report"));
 }
