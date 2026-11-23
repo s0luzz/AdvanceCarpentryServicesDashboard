@@ -10,6 +10,7 @@ import {
     Home01,
     Mail01,
     Moon01,
+    Package,
     Receipt,
     Settings01,
     Sun,
@@ -62,6 +63,11 @@ const sidebarItems: SidebarItem[] = [
         label: "Employees",
         path: "/employees",
         icon: Users02,
+    },
+    {
+        label: "Uniforms",
+        path: "/uniforms",
+        icon: Package,
     },
     {
         label: "Suppliers",

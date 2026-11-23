@@ -1790,6 +1790,62 @@ const SWMS_FILES = {
     pdf: { build: buildSwmsPdf, type: "application/pdf" },
 };
 
+/**
+ * Uniform stock: a count per item and size. Changes arrive as a delta (the
+ * + / - buttons, safe when clicked quickly) or an absolute count (typed in).
+ */
+const UNIFORM_ITEMS = ["singlets", "shirts", "jumpers"];
+const UNIFORM_SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
+
+function uniformStock(db) {
+    return Object.fromEntries(
+        UNIFORM_ITEMS.map((item) => [
+            item,
+            Object.fromEntries(
+                UNIFORM_SIZES.map((size) => [size, db.uniformStock?.[item]?.[size] ?? 0]),
+            ),
+        ]),
+    );
+}
+
+app.get("/api/uniform-stock", async (_req, res) => {
+    try {
+        return res.json(uniformStock(await readDb()));
+    } catch (error) {
+        console.error("Failed to load uniform stock:", error);
+
+        return res.status(500).json({ message: "Failed to load uniform stock" });
+    }
+});
+
+app.patch("/api/uniform-stock", async (req, res) => {
+    try {
+        const { item, size, delta, count } = req.body ?? {};
+
+        if (!UNIFORM_ITEMS.includes(item) || !UNIFORM_SIZES.includes(size)) {
+            return res.status(400).json({ message: "Unknown item or size" });
+        }
+
+        const db = await readDb();
+        const stock = uniformStock(db);
+        const next = Number.isInteger(count) ? count : stock[item][size] + delta;
+
+        if (!Number.isInteger(next) || next < 0 || next > 99999) {
+            return res.status(400).json({ message: "Stock must be a whole number of 0 or more." });
+        }
+
+        stock[item][size] = next;
+        db.uniformStock = stock;
+        await writeDb(db);
+
+        return res.json(stock);
+    } catch (error) {
+        console.error("Failed to update uniform stock:", error);
+
+        return res.status(500).json({ message: "Failed to update uniform stock" });
+    }
+});
+
 app.get("/api/swms/defaults", async (_req, res) => {
     try {
         const db = await readDb();

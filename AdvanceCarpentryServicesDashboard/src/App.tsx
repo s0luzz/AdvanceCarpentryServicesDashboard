@@ -13,6 +13,7 @@ import PdfEditorPage from "./pages/PdfEditorPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import EmployeesPage from "./pages/EmployeesPage";
 import MaterialPricesPage from "./pages/MaterialPricesPage";
+import UniformStockPage from "./pages/UniformStockPage";
 import LoginPage from "./pages/LoginPage";
 import TakeoffPage, { LegacyViewerRedirect } from "./pages/TakeoffPage";
 import { ComingSoonPage, NotFoundPage } from "./pages/PlaceholderPages";
@@ -152,6 +153,7 @@ function App() {
             <Route path="/invoices" element={<InvoicesPage />} />
             <Route path="/employees" element={<EmployeesPage />} />
             <Route path="/material-prices" element={<MaterialPricesPage />} />
+            <Route path="/uniforms" element={<UniformStockPage />} />
             <Route
                 path="/quotes/:jobId/pdf-editor"
                 element={<PdfEditorPage />}
