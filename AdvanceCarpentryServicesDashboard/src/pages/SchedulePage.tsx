@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 
+import { JOB_STATUS_LIST } from "../components/layout/NewQuoteModal";
 import { useFeedback } from "../components/ui/Feedback";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
@@ -124,6 +125,28 @@ function SchedulePage() {
         try {
             await request(`${API}/schedule/${id}`, { method: "DELETE" });
         } catch (error) {
+            fail(error);
+        }
+    }
+
+    async function changeStatus(jobId: string, status: string) {
+        const previous = jobs.find((job) => job.id === jobId)?.status;
+        const set = (value?: string) =>
+            setJobs((current) =>
+                current.map((job) =>
+                    job.id === jobId ? { ...job, status: value } : job,
+                ),
+            );
+
+        set(status);
+
+        try {
+            await request(
+                `${API}/quoted-jobs/${jobId}`,
+                jsonInit("PATCH", { status }),
+            );
+        } catch (error) {
+            set(previous);
             fail(error);
         }
     }
@@ -271,6 +294,26 @@ function SchedulePage() {
                             {formatLongDate(selected.end)} ({selectedLength}{" "}
                             working day{selectedLength === 1 ? "" : "s"})
                         </p>
+
+                        <label className="mt-4 block text-sm text-gray-700">
+                            Status
+                            <select
+                                value={selectedJob.status ?? "Quoted"}
+                                onChange={(event) =>
+                                    void changeStatus(
+                                        selectedJob.id,
+                                        event.target.value,
+                                    )
+                                }
+                                className="mt-1 block w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+                            >
+                                {JOB_STATUS_LIST.map((status) => (
+                                    <option key={status} value={status}>
+                                        {status}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
 
                         <NavLink
                             to={`/jobs/${selectedJob.id}`}
