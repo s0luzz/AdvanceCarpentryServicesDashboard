@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 
-import { reportFileName, reportHeader, reportNotes } from "./exportBeamReport";
+import { reportFileName, reportFinish, reportHeader } from "./exportBeamReport";
 
 type ReportBeam = { pageNumber: number; lengthMm: number; beamTypeId: string };
 type ReportPost = { pageNumber: number; costDollars: number };
@@ -145,7 +145,5 @@ export function exportStructuralReport({ client, address, beamTypes, files, kgFa
   pdf.setTextColor(0);
   y += 22;
 
-  reportNotes(pdf, y, margin);
-
-  pdf.save(reportFileName(address || client, "Structural steel report"));
+  reportFinish(pdf, y, margin, reportFileName(address || client, "Structural steel report"));
 }

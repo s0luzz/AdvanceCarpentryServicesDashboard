@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 
-import { reportFileName, reportHeader, reportNotes } from "../components/pdf-editor/exportBeamReport";
+import { reportFileName, reportFinish, reportHeader } from "../components/pdf-editor/exportBeamReport";
 
 export const UNIFORM_ITEMS = [
     { key: "singlets", label: "Singlets" },
@@ -49,6 +49,5 @@ export function exportUniformReport(stock: UniformStock) {
         y + 4,
     );
 
-    reportNotes(pdf, y + 30, margin);
-    pdf.save(reportFileName(new Date().toLocaleDateString("en-CA"), "Uniform stock"));
+    reportFinish(pdf, y + 30, margin, reportFileName(new Date().toLocaleDateString("en-CA"), "Uniform stock"));
 }

@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 
+import { LETTERHEAD_LOGO } from "../../lib/letterheadLogo";
 import type { DimensionMarkup } from "./editorTypes";
 
 type ReportOptions = {
@@ -116,10 +117,28 @@ const GROUP_TITLES: Record<BeamGroup, string> = {
   none: "No length entered (measured length shown)",
 };
 
-// Shared by the markup beam report and the structural takeoff report.
-export function reportHeader(pdf: jsPDF, title: string, lines: string[], margin: number) {
-  let y = margin;
+// Shared by the markup beam report, the structural takeoff report and the
+// uniform stock report. They all carry the company letterhead (from
+// Letterhead.docx): logo and contact details at the top of the first page,
+// mobile and address along the bottom of every page.
+const LOGO_WIDTH = 230;
+const LOGO_HEIGHT = (LOGO_WIDTH * 318) / 1590;
 
+export function reportHeader(pdf: jsPDF, title: string, lines: string[], margin: number) {
+  const width = pdf.internal.pageSize.getWidth();
+  let y = 28;
+
+  pdf.addImage(LETTERHEAD_LOGO, "PNG", margin - 6, y, LOGO_WIDTH, LOGO_HEIGHT);
+  pdf.setFont("helvetica", "normal").setFontSize(9).setTextColor(60);
+  [
+    "ACN. 12 166 309 851",
+    "P: 0406 641 049",
+    "E: Info@advancecarpentryservices.com.au",
+    "License Number: 270963C",
+  ].forEach((line, index) => pdf.text(line, width - margin, y + 10 + index * 12, { align: "right" }));
+  pdf.setTextColor(0);
+
+  y += LOGO_HEIGHT + 34;
   pdf.setFont("helvetica", "bold").setFontSize(18).text(title, margin, y);
   y += 22;
   pdf.setFont("helvetica", "normal").setFontSize(11);
@@ -133,8 +152,26 @@ export function reportHeader(pdf: jsPDF, title: string, lines: string[], margin:
   return y + 12;
 }
 
+// Ends a report: the notes box, the letterhead footer on every page, then save.
+export function reportFinish(pdf: jsPDF, y: number, margin: number, fileName: string) {
+  reportNotes(pdf, y, margin);
+
+  const width = pdf.internal.pageSize.getWidth();
+  const height = pdf.internal.pageSize.getHeight();
+
+  for (let page = 1; page <= pdf.getNumberOfPages(); page += 1) {
+    pdf.setPage(page);
+    pdf.setFont("helvetica", "normal").setFontSize(9).setTextColor(60);
+    pdf.text("M: 0406 641 049", margin, height - 24);
+    pdf.text("29 Meakin Street, MERRYLANDS NSW 2160", width - margin, height - 24, { align: "right" });
+    pdf.setTextColor(0);
+  }
+
+  pdf.save(fileName);
+}
+
 // A "Notes" box with writing lines, moved to a new page if it won't fit.
-export function reportNotes(pdf: jsPDF, startY: number, margin: number) {
+function reportNotes(pdf: jsPDF, startY: number, margin: number) {
   const width = pdf.internal.pageSize.getWidth();
   const height = pdf.internal.pageSize.getHeight();
   const notesHeight = Math.max(Math.min(height - margin - startY, 170), 60);
@@ -219,7 +256,5 @@ export function exportBeamReport({ client, address, dimensions: all }: ReportOpt
   pdf.text(`Total: ${dimensions.length} piece${dimensions.length === 1 ? "" : "s"}`, margin, y + 4);
   y += 30;
 
-  reportNotes(pdf, y, margin);
-
-  pdf.save(reportFileName(address || client, "Beam report"));
+  reportFinish(pdf, y, margin, reportFileName(address || client, "Beam report"));
 }
